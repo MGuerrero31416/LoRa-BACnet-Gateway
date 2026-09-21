@@ -1,0 +1,25 @@
+menu "Project hardware"
+
+    choice USER_DISPLAY_PROFILE
+        prompt "Display profile"
+        default USER_DISPLAY_LORA_GATEWAY
+
+        config USER_DISPLAY_LORA_GATEWAY
+            bool "LoRa 32 V4 SX1262 gateway receiver"
+
+    endchoice
+
+# MS/TP RS-485 transceiver (MAX485) for the gateway profile.
+config USER_MSTP_UART_TX_GPIO
+    int
+    default 17
+
+config USER_MSTP_UART_RX_GPIO
+    int
+    default 16
+
+config USER_MSTP_UART_DE_GPIO
+    int
+    default 5
+
+endmenu

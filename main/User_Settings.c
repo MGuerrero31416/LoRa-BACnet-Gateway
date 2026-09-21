@@ -1,0 +1,222 @@
+#include "User_Settings.h"
+#include "bacnet/bacenum.h"
+#include "bacnet/basic/object/device.h"
+#include "esp_log.h"
+
+#include <inttypes.h>
+#include <string.h>
+
+#include "User_Private_Settings.h"
+
+const char USER_BACNET_FIRMWARE_REVISION[] = "LB1.1 2026_09_21";
+const bool USER_ENABLE_BACNET_IP = true;
+const bool USER_WIFI_USE_STATIC_IP = true;
+const char USER_WIFI_STATIC_IP_ADDR[] = "10.120.245.94";
+const char USER_WIFI_STATIC_IP_GATEWAY[] = "10.120.245.254";
+const char USER_WIFI_STATIC_IP_NETMASK[] = "255.255.255.0";
+const char USER_WIFI_STATIC_DNS[] = "8.8.8.8";
+
+const char USER_BACNET_DEVICE_NAME[] = "LoRa-BACnet-GW-01";
+const uint32_t USER_BACNET_DEVICE_INSTANCE = 55544;
+const int USER_OVERRIDE_NVS_ON_FLASH = 0;
+const char USER_BACNET_DEVICE_DESCRIPTION[] = "LoRa-BACnet-GW-01";
+const char USER_BACNET_MODEL_NAME[] = "LoRa-BACnet-GW-01";
+const char USER_BACNET_VENDOR_NAME[] = "ESCAP FMS";
+const uint16_t USER_BACNET_VENDOR_ID = 260;
+const char USER_BACNET_LOCATION[] = "SEC-B Ground Floor FMS";
+const char *USER_BACNET_APPLICATION_SOFTWARE_VERSION = USER_BACNET_FIRMWARE_REVISION;
+const char USER_BACNET_SERIAL_NUMBER[] = "LoRa-BACnet-GW-01";
+
+const bool USER_ENABLE_BACNET_MSTP = true;
+const uint8_t USER_MSTP_MAC_ADDRESS = 44;
+const uint8_t USER_MSTP_MAX_INFO_FRAMES = 1;
+const uint8_t USER_MSTP_MAX_MASTER = 126;
+const uint32_t USER_MSTP_BAUD_RATE = 38400U;
+const uint8_t USER_BBMD_IP_OCTET_1 = 192;
+const uint8_t USER_BBMD_IP_OCTET_2 = 168;
+const uint8_t USER_BBMD_IP_OCTET_3 = 1;
+const uint8_t USER_BBMD_IP_OCTET_4 = 1;
+const uint16_t USER_BBMD_PORT = 0xBAC0;
+const uint16_t USER_BBMD_TTL_SECONDS = 600;
+
+const uint32_t USER_AV_INSTANCES[USER_AV_COUNT] = {
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+};
+const char *USER_AV_NAMES[USER_AV_COUNT] = {
+    "AV1", "AV2", "AV3", "AV4", "AV5", "AV6", "AV7", "AV8",
+    "AV9", "AV10", "AV11", "AV12", "AV13", "AV14", "AV15", "AV16"
+};
+const char *USER_AV_DESCRIPTIONS[USER_AV_COUNT] = {
+    "Analog Value 1", "Analog Value 2", "Analog Value 3", "Analog Value 4",
+    "Analog Value 5", "Analog Value 6", "Analog Value 7", "Analog Value 8",
+    "Analog Value 9", "Analog Value 10", "Analog Value 11", "Analog Value 12",
+    "Analog Value 13", "Analog Value 14", "Analog Value 15", "Analog Value 16"
+};
+const uint16_t USER_AV_UNITS[USER_AV_COUNT] = {
+    UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS,
+    UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS,
+    UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS,
+    UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS
+};
+const float USER_AV_INITIAL_VALUES[USER_AV_COUNT] = {
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
+};
+const float USER_AV_COV_INCREMENTS[USER_AV_COUNT] = {
+    1.0f, 0.005f, 0.0001f, 1.0f, 0.1f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+};
+
+const uint32_t USER_BV_INSTANCES[USER_BV_COUNT] = { 1, 2, 3, 4 };
+const char *USER_BV_NAMES[USER_BV_COUNT] = {
+    "BV1", "BV2", "BV3", "BV4"
+};
+const char *USER_BV_DESCRIPTIONS[USER_BV_COUNT] = {
+    "Binary Value 1", "Binary Value 2", "Binary Value 3", "Binary Value 4"
+};
+const char *USER_BV_ACTIVE_TEXT[USER_BV_COUNT] = { "ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE" };
+const char *USER_BV_INACTIVE_TEXT[USER_BV_COUNT] = { "INACTIVE", "INACTIVE", "INACTIVE", "INACTIVE" };
+const uint8_t USER_BV_INITIAL_VALUES[USER_BV_COUNT] = {
+    BINARY_INACTIVE, BINARY_ACTIVE, BINARY_INACTIVE, BINARY_INACTIVE
+};
+
+const uint32_t USER_AI_INSTANCES[USER_AI_COUNT] = {
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+};
+const char *USER_AI_NAMES[USER_AI_COUNT] = {
+    "TEMP_01", "HR_01", "VOC_01", "PM2.5_01",
+    "TEMP_02", "HR_02", "VOC_02", "PM2.5_02",
+    "TEMP_03", "HR_03", "VOC_03", "PM2.5_03",
+    "TEMP_04", "HR_04", "VOC_04", "PM2.5_04",
+    "TEMP_05", "HR_05", "VOC_05", "PM2.5_05",
+    "TEMP_06", "HR_06", "VOC_06", "PM2.5_06",
+    "AI25", "AI26", "AI27", "AI28",
+    "AI29", "AI30", "AI31", "AI32"
+};
+const char *USER_AI_DESCRIPTIONS[USER_AI_COUNT] = {
+    "Temperature Device 01", "Humidity Device 01", "VOC Index Device 01", "PM2.5 Device 01",
+    "Temperature Device 02", "Humidity Device 02", "VOC Index Device 02", "PM2.5 Device 02",
+    "Temperature Device 03", "Humidity Device 03", "VOC Index Device 03", "PM2.5 Device 03",
+    "Temperature Device 04", "Humidity Device 04", "VOC Index Device 04", "PM2.5 Device 04",
+    "Temperature Device 05", "Humidity Device 05", "VOC Index Device 05", "PM2.5 Device 05",
+    "Temperature Device 06", "Humidity Device 06", "VOC Index Device 06", "PM2.5 Device 06",
+    "Analog Input 25", "Analog Input 26", "Analog Input 27", "Analog Input 28",
+    "Analog Input 29", "Analog Input 30", "Analog Input 31", "Analog Input 32"
+};
+const uint16_t USER_AI_UNITS[USER_AI_COUNT] = {
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS,
+    UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS
+};
+const float USER_AI_INITIAL_VALUES[USER_AI_COUNT] = {
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
+};
+const float USER_AI_COV_INCREMENTS[USER_AI_COUNT] = {
+    0.1f, 0.5f, 1.0f, 1.0f, 0.1f, 0.5f, 1.0f, 1.0f,
+    0.1f, 0.5f, 1.0f, 1.0f, 0.1f, 0.5f, 1.0f, 1.0f,
+    0.1f, 0.5f, 1.0f, 1.0f, 0.1f, 0.5f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+};
+
+const uint32_t USER_BI_INSTANCES[USER_BI_COUNT] = { 1, 2, 3, 4 };
+const char *USER_BI_NAMES[USER_BI_COUNT] = {
+    "BI1", "BI2", "BI3", "BI4"
+};
+const char *USER_BI_DESCRIPTIONS[USER_BI_COUNT] = {
+    "Binary Input 1", "Binary Input 2", "Binary Input 3", "Binary Input 4"
+};
+const char *USER_BI_ACTIVE_TEXT[USER_BI_COUNT] = { "ACTIVE", "ACTIVE", "ACTIVE", "ACTIVE" };
+const char *USER_BI_INACTIVE_TEXT[USER_BI_COUNT] = { "INACTIVE", "INACTIVE", "INACTIVE", "INACTIVE" };
+const uint8_t USER_BI_INITIAL_VALUES[USER_BI_COUNT] = {
+    BINARY_INACTIVE, BINARY_INACTIVE, BINARY_INACTIVE, BINARY_INACTIVE
+};
+
+const uint32_t USER_BO_INSTANCES[USER_BO_COUNT] = { 1, 2, 3, 4 };
+const char *USER_BO_NAMES[USER_BO_COUNT] = { "BO1", "BO2", "BO3", "BO4" };
+const char *USER_BO_DESCRIPTIONS[USER_BO_COUNT] = {
+    "Binary Output 1", "Binary Output 2", "Binary Output 3", "Binary Output 4"
+};
+const char *USER_BO_ACTIVE_TEXT[USER_BO_COUNT] = { "ON", "ON", "ON", "ON" };
+const char *USER_BO_INACTIVE_TEXT[USER_BO_COUNT] = { "OFF", "OFF", "OFF", "OFF" };
+const uint8_t USER_BO_INITIAL_VALUES[USER_BO_COUNT] = {
+    BINARY_INACTIVE, BINARY_INACTIVE, BINARY_INACTIVE, BINARY_INACTIVE
+};
+
+#if USER_SETTINGS_PRINT_ENABLE
+static const char *TAG_USER_SETTINGS = "user_settings";
+#endif
+
+void User_Settings_InitDeviceIdentity(void)
+{
+    (void)Device_Object_Name_ANSI_Init(USER_BACNET_DEVICE_NAME);
+    (void)Device_Set_Description(USER_BACNET_DEVICE_DESCRIPTION, strlen(USER_BACNET_DEVICE_DESCRIPTION));
+    (void)Device_Set_Model_Name(USER_BACNET_MODEL_NAME, strlen(USER_BACNET_MODEL_NAME));
+    Device_Set_Vendor_Identifier(USER_BACNET_VENDOR_ID);
+    (void)Device_Set_Location(USER_BACNET_LOCATION, strlen(USER_BACNET_LOCATION));
+    (void)Device_Set_Firmware_Revision(USER_BACNET_FIRMWARE_REVISION, strlen(USER_BACNET_FIRMWARE_REVISION));
+    (void)Device_Set_Application_Software_Version(USER_BACNET_APPLICATION_SOFTWARE_VERSION, strlen(USER_BACNET_APPLICATION_SOFTWARE_VERSION));
+    (void)Device_Serial_Number_Set(USER_BACNET_SERIAL_NUMBER, strlen(USER_BACNET_SERIAL_NUMBER));
+}
+
+void User_Settings_Print(void)
+{
+#if USER_SETTINGS_PRINT_ENABLE
+    ESP_LOGI(TAG_USER_SETTINGS, "User Settings");
+    ESP_LOGI(TAG_USER_SETTINGS, "Firmware revision: %s", USER_BACNET_FIRMWARE_REVISION);
+
+    /* Display hardware profile selected in menuconfig. */
+#if defined(CONFIG_USER_DISPLAY_LORA_GATEWAY)
+    ESP_LOGI(TAG_USER_SETTINGS, "Display Hardware Profile: LoRa 32 V4 SX1262 gateway receiver");
+#else
+    ESP_LOGI(TAG_USER_SETTINGS, "Display Hardware Profile: (unknown)");
+#endif
+
+    ESP_LOGI(TAG_USER_SETTINGS, "[Wi-Fi / BACnet-IP]");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_ENABLE_BACNET_IP: %s", USER_ENABLE_BACNET_IP ? "true" : "false");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_SSID: %s", USER_WIFI_SSID);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_PASS: ****");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_USE_STATIC_IP: %s", USER_WIFI_USE_STATIC_IP ? "true" : "false");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_STATIC_IP_ADDR: %s", USER_WIFI_STATIC_IP_ADDR);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_STATIC_IP_GATEWAY: %s", USER_WIFI_STATIC_IP_GATEWAY);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_STATIC_IP_NETMASK: %s", USER_WIFI_STATIC_IP_NETMASK);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_WIFI_STATIC_DNS: %s", USER_WIFI_STATIC_DNS);
+
+    ESP_LOGI(TAG_USER_SETTINGS, "[BACnet Device]");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_DEVICE_NAME: %s", USER_BACNET_DEVICE_NAME);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_DEVICE_DESCRIPTION: %s", USER_BACNET_DEVICE_DESCRIPTION);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_MODEL_NAME: %s", USER_BACNET_MODEL_NAME);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_VENDOR_NAME: %s", USER_BACNET_VENDOR_NAME);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_VENDOR_ID: %" PRIu16, USER_BACNET_VENDOR_ID);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_LOCATION: %s", USER_BACNET_LOCATION);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_FIRMWARE_REVISION: %s", USER_BACNET_FIRMWARE_REVISION);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_APPLICATION_SOFTWARE_VERSION: %s", USER_BACNET_APPLICATION_SOFTWARE_VERSION);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_SERIAL_NUMBER: %s", USER_BACNET_SERIAL_NUMBER);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BACNET_DEVICE_INSTANCE: %" PRIu32, USER_BACNET_DEVICE_INSTANCE);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_OVERRIDE_NVS_ON_FLASH: %d", USER_OVERRIDE_NVS_ON_FLASH);
+
+    ESP_LOGI(TAG_USER_SETTINGS, "[BBMD]");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BBMD_IP: %" PRIu8 ".%" PRIu8 ".%" PRIu8 ".%" PRIu8,
+        USER_BBMD_IP_OCTET_1, USER_BBMD_IP_OCTET_2,
+        USER_BBMD_IP_OCTET_3, USER_BBMD_IP_OCTET_4);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BBMD_PORT: %" PRIu16, USER_BBMD_PORT);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_BBMD_TTL_SECONDS: %" PRIu16, USER_BBMD_TTL_SECONDS);
+
+    ESP_LOGI(TAG_USER_SETTINGS, "[BACnet MS/TP]");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_ENABLE_BACNET_MSTP: %s", USER_ENABLE_BACNET_MSTP ? "true" : "false");
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_MSTP_MAC_ADDRESS: %" PRIu8, USER_MSTP_MAC_ADDRESS);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_MSTP_MAX_INFO_FRAMES: %" PRIu8, USER_MSTP_MAX_INFO_FRAMES);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_MSTP_MAX_MASTER: %" PRIu8, USER_MSTP_MAX_MASTER);
+    ESP_LOGI(TAG_USER_SETTINGS, "USER_MSTP_BAUD_RATE: %" PRIu32, USER_MSTP_BAUD_RATE);
+
+    ESP_LOGI(TAG_USER_SETTINGS, "Analog Input objects: %u", (unsigned)USER_AI_COUNT);
+#endif
+}
