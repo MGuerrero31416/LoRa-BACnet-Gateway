@@ -14,7 +14,8 @@
  *   - length must be exactly 26 bytes;
  *   - version must match the supported gateway protocol version;
  *   - device id must match the configured gateway sensor ID;
- *   - sequence must be strictly newer than the last accepted packet;
+ *   - sequence is decoded and retained with the sensor state, but does not
+ *     restrict acceptance of periodic telemetry packets;
  *   - temperature, humidity, PM2.5, and VOC values must be in sane ranges.
  */
 #include "lora_gateway.h"
@@ -219,7 +220,7 @@ static void lora_gateway_task(void *argument)
         }
 
         lora_gateway_publish_valid_packet(&packet);
-        display_update_lora_values(packet.voc_index, packet.pm2_5_ug_m3);
+        display_update_lora_values(packet.voc_index, packet.pm2_5_ug_m3, packet.device_id);
     }
 }
 

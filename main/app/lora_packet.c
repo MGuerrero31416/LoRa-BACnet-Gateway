@@ -8,19 +8,6 @@ static bool lora_range_valid(float value, float min, float max)
     return isfinite(value) && value >= min && value <= max;
 }
 
-static bool lora_sequence_is_newer(uint32_t sequence, uint32_t last_accepted_sequence)
-{
-    if (sequence == last_accepted_sequence) {
-        return false;
-    }
-
-    if (sequence > last_accepted_sequence) {
-        return (sequence - last_accepted_sequence) < 0x80000000U;
-    }
-
-    return (last_accepted_sequence - sequence) > 0x80000000U;
-}
-
 bool lora_packet_decode(
     const uint8_t *packet,
     size_t packet_len,
@@ -33,6 +20,7 @@ bool lora_packet_decode(
         return false;
     }
 
+    (void)last_accepted_sequence;
     *reason = LORA_PACKET_ACCEPTED;
     memset(decoded_packet, 0, sizeof(*decoded_packet));
     if (packet == NULL || packet_len == 0U) {
@@ -75,10 +63,6 @@ bool lora_packet_decode(
 
     uint32_t sequence = 0U;
     memcpy(&sequence, &packet[5], sizeof(sequence));
-    if (!lora_sequence_is_newer(sequence, last_accepted_sequence)) {
-        *reason = LORA_PACKET_REJECT_SEQUENCE;
-        return false;
-    }
 
     decoded_packet->device_id = device_id;
     decoded_packet->sequence = sequence;

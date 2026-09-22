@@ -27,6 +27,7 @@ static i2c_master_dev_handle_t display_device;
 static u8g2_t display;
 static bool display_ready;
 static uint32_t received_count;
+static uint32_t received_device_id;
 
 static uint8_t u8g2_i2c_callback(
     u8x8_t *u8x8,
@@ -113,9 +114,10 @@ static void display_draw_values(float voc, float pm25)
 
     u8g2_ClearBuffer(&display);
 
-    // --- Line 1: Header ---
+    // --- Line 1: Received counter ---
     u8g2_SetFont(&display, u8g2_font_6x13B_tr); // Set to BOLD for header
-    u8g2_DrawStr(&display, 0, 13, "RECEIVER");
+    (void)snprintf(line, sizeof(line), "RECEIVED: %" PRIu32, received_count);
+    u8g2_DrawStr(&display, 0, 13, line);
 
     // Draw a visual separator line directly under the header cell (at Y = 15)
     u8g2_DrawLine(&display, 0, 15, 127, 15);
@@ -124,7 +126,7 @@ static void display_draw_values(float voc, float pm25)
     u8g2_SetFont(&display, u8g2_font_6x13_tr);  // Switch back to regular font
 
     // Line 2 (Data Line 1)
-    (void)snprintf(line, sizeof(line), "Received: %" PRIu32, received_count);
+    (void)snprintf(line, sizeof(line), "Device ID: %" PRIu32, received_device_id);
     u8g2_DrawStr(&display, 0, 31, line);
 
     // Line 3 (Data Line 2)
@@ -185,12 +187,13 @@ void display_set_link_status(bool wifi_connected, bool mstp_connected)
     (void)mstp_connected;
 }
 
-void display_update_lora_values(float voc, float pm25)
+void display_update_lora_values(float voc, float pm25, uint32_t device_id)
 {
     if (!display_ready) {
         return;
     }
 
     received_count++;
+    received_device_id = device_id;
     display_draw_values(voc, pm25);
 }

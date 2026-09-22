@@ -82,17 +82,17 @@ int main(void)
     expect_result("device above range", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_DEVICE_ID);
 
     make_packet(packet, 1U, 10U);
-    expect_result("duplicate sequence", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_SEQUENCE);
+    expect_result("duplicate sequence accepted", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
 
     make_packet(packet, 1U, 9U);
-    expect_result("older sequence", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_SEQUENCE);
+    expect_result("older sequence accepted", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
 
     make_packet(packet, 1U, 0U);
     expect_result("sequence wraparound", packet, sizeof(packet), UINT32_MAX, true, LORA_PACKET_ACCEPTED);
 
     make_packet(packet, 1U, 10U);
     packet[25] = LORA_GATEWAY_STATUS_WARNING;
-    expect_result("warning cannot bypass sequence", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_SEQUENCE);
+    expect_result("warning with older sequence", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
 
     make_packet(packet, 1U, 11U);
     write_float(&packet[9], NAN);
