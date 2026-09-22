@@ -68,4 +68,9 @@ target_compile_definitions(${COMPONENT_LIB} PUBLIC
     BACDL_BIP=1
     BACDL_MSTP=1
     BACDL_MULTIPLE=1
+    # Local outgoing-frame queue depth for MS/TP (separate from the wire
+    # protocol's Max_Info_Frames). With only 1 slot, a queued COV
+    # notification blocks any other confirmed-service reply (e.g.
+    # SubscribeCOVProperty ACK) from being queued until it drains.
+    DLMSTP_MAX_INFO_FRAMES=8
 )

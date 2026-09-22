@@ -106,11 +106,7 @@ static void profiled_handler_subscribe_cov_property(
     uint16_t service_len,
     BACNET_ADDRESS *src,
     BACNET_CONFIRMED_SERVICE_DATA *service_data);
-static void profiled_handler_read_property_multiple(
-    uint8_t *service_request,
-    uint16_t service_len,
-    BACNET_ADDRESS *src,
-    BACNET_CONFIRMED_SERVICE_DATA *service_data);
+
 
 static void bacnet_profile_notify(bacnet_app_profile_event_t event)
 {
@@ -412,7 +408,7 @@ esp_err_t bacnet_app_init(
 
     apdu_set_confirmed_handler(
         SERVICE_CONFIRMED_READ_PROP_MULTIPLE,
-        profiled_handler_read_property_multiple);
+        handler_read_property_multiple);
 
     apdu_set_confirmed_handler(
         SERVICE_CONFIRMED_WRITE_PROPERTY,
@@ -698,11 +694,12 @@ void bacnet_app_reset_mstp_diagnostics(void)
     /*
     ESP_LOGI(
         TAG,
-        "MS/TP 30s diag: rx_bytes=%lu preamble_55=%lu preamble_55ff=%lu pdu_count=%lu",
+        "MS/TP 30s diag: rx_bytes=%lu preamble_55=%lu preamble_55ff=%lu pdu_count=%lu apdu_count=%lu",
         (unsigned long)rx_bytes,
         (unsigned long)preamble_55,
         (unsigned long)preamble_55ff,
-        (unsigned long)pdu_count);
+        (unsigned long)pdu_count,
+        (unsigned long)s_mstp_apdu_count);
     */
 
     s_mstp_pdu_count = 0;
@@ -879,14 +876,6 @@ static void profiled_handler_read_property(
     BACNET_ADDRESS *src,
     BACNET_CONFIRMED_SERVICE_DATA *service_data)
 {
-    ESP_LOGI(
-        TAG,
-        "ReadProperty handler RX: mac_len=%u mac=%u invoke=%u len=%u",
-        (unsigned)(src ? src->mac_len : 0),
-        (unsigned)((src && src->mac_len) ? src->mac[0] : 0),
-        (unsigned)(service_data ? service_data->invoke_id : 0),
-        (unsigned)service_len);
-
     bacnet_profile_notify(BACNET_APP_PROFILE_READ_PROPERTY);
     handler_read_property(service_request, service_len, src, service_data);
     bacnet_profile_notify(BACNET_APP_PROFILE_READ_PROPERTY);
@@ -901,23 +890,6 @@ static void profiled_handler_write_property(
     bacnet_profile_notify(BACNET_APP_PROFILE_WRITE_PROPERTY);
     handler_write_property(service_request, service_len, src, service_data);
     bacnet_profile_notify(BACNET_APP_PROFILE_WRITE_PROPERTY);
-}
-
-static void profiled_handler_read_property_multiple(
-    uint8_t *service_request,
-    uint16_t service_len,
-    BACNET_ADDRESS *src,
-    BACNET_CONFIRMED_SERVICE_DATA *service_data)
-{
-    ESP_LOGI(
-        TAG,
-        "ReadPropertyMultiple handler RX: mac_len=%u mac=%u invoke=%u len=%u",
-        (unsigned)(src ? src->mac_len : 0),
-        (unsigned)((src && src->mac_len) ? src->mac[0] : 0),
-        (unsigned)(service_data ? service_data->invoke_id : 0),
-        (unsigned)service_len);
-
-    handler_read_property_multiple(service_request, service_len, src, service_data);
 }
 
 static void profiled_handler_subscribe_cov(
@@ -981,30 +953,12 @@ static void bacnet_process_frame_event(const bacnet_event_t *evt)
             src = orig_src;
         }
 
-        ESP_LOGI(
-            TAG,
-            "BIP RX: from=%u.%u.%u.%u:%u len=%u apdu_offset=%d expecting_reply=%d",
-            (unsigned)orig_src.adr[0],
-            (unsigned)orig_src.adr[1],
-            (unsigned)orig_src.adr[2],
-            (unsigned)orig_src.adr[3],
-            (unsigned)(((unsigned)orig_src.adr[4] << 8) | orig_src.adr[5]),
-            (unsigned)evt->length,
-            apdu_offset,
-            (int)npdu_data.data_expecting_reply);
-
         if (apdu_offset > 0 && apdu_offset < (int)evt->length) {
             bacnet_profile_notify(BACNET_APP_PROFILE_BIP_RX);
             bacnet_datalink_lock(s_datalink_bip);
             apdu_handler(&src, (uint8_t *)&evt->data.frame[apdu_offset], evt->length - apdu_offset);
             bacnet_datalink_unlock();
             bacnet_profile_notify(BACNET_APP_PROFILE_BIP_RX);
-        } else {
-            ESP_LOGW(
-                TAG,
-                "BIP RX frame decode failed: apdu_offset=%d length=%u",
-                apdu_offset,
-                (unsigned)evt->length);
         }
     } else if (evt->link_id == BACNET_EVENT_LINK_MSTP) {
         BACNET_ADDRESS src = evt->src;

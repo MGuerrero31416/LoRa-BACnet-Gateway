@@ -18,7 +18,7 @@ const char USER_WIFI_STATIC_DNS[] = "8.8.8.8";
 
 const char USER_BACNET_DEVICE_NAME[] = "55532";
 const uint32_t USER_BACNET_DEVICE_INSTANCE = 55532;
-const int USER_OVERRIDE_NVS_ON_FLASH = 1;
+const int USER_OVERRIDE_NVS_ON_FLASH = 0;
 const char USER_BACNET_DEVICE_DESCRIPTION[] = "LoRa-BACnet-GW-01";
 const char USER_BACNET_MODEL_NAME[] = "LoRa-BACnet-GW-01";
 const char USER_BACNET_VENDOR_NAME[] = "ESCAP FMS";
@@ -29,7 +29,11 @@ const char USER_BACNET_SERIAL_NUMBER[] = "LoRa-BACnet-GW-01";
 
 const bool USER_ENABLE_BACNET_MSTP = true;
 const uint8_t USER_MSTP_MAC_ADDRESS = 32;
-const uint8_t USER_MSTP_MAX_INFO_FRAMES = 1;
+/* MAX_INFO_FRAMES Raised from 1: with 32 AI objects driving frequent LoRa-triggered COV
+ * notifications, a 1-frame/token budget starves NAE rediscovery reads
+ * after a reboot. DLMSTP_MAX_INFO_FRAMES=8 already gives room to queue
+ * multiple frames locally so this budget can actually be used. */
+const uint8_t USER_MSTP_MAX_INFO_FRAMES = 4;
 const uint8_t USER_MSTP_MAX_MASTER = 126;
 const uint32_t USER_MSTP_BAUD_RATE = 38400U;
 const uint8_t USER_BBMD_IP_OCTET_1 = 192;
