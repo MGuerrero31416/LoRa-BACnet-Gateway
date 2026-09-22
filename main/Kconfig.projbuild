@@ -12,14 +12,14 @@ menu "Project hardware"
 # MS/TP RS-485 transceiver (MAX485) for the gateway profile.
 config USER_MSTP_UART_TX_GPIO
     int
-    default 17
+    default 34
 
 config USER_MSTP_UART_RX_GPIO
     int
-    default 16
+    default 6
 
 config USER_MSTP_UART_DE_GPIO
     int
-    default 5
+    default 33
 
 endmenu
