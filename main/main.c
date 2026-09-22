@@ -10,6 +10,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+// ESP-IDF reset-reason reporting (survives brownout/watchdog/panic resets)
+#include "esp_system.h"
+
 // Application services
 #include "app_storage.h"         /* Initialize NVS and persistence policy */
 #include "app_supervisor.h"      /* Run periodic display/status maintenance */
@@ -29,8 +32,30 @@ static TaskHandle_t bacnet_core_task_handle = NULL;
 static TaskHandle_t bacnet_cov_task_handle = NULL;
 static TaskHandle_t lora_gateway_task_handle = NULL;
 
+static const char *reset_reason_name(esp_reset_reason_t reason)
+{
+    switch (reason) {
+        case ESP_RST_POWERON: return "POWERON";
+        case ESP_RST_EXT: return "EXT_PIN";
+        case ESP_RST_SW: return "SW_RESET (esp_restart)";
+        case ESP_RST_PANIC: return "PANIC";
+        case ESP_RST_INT_WDT: return "INT_WDT";
+        case ESP_RST_TASK_WDT: return "TASK_WDT";
+        case ESP_RST_WDT: return "OTHER_WDT";
+        case ESP_RST_DEEPSLEEP: return "DEEPSLEEP_WAKE";
+        case ESP_RST_BROWNOUT: return "BROWNOUT";
+        case ESP_RST_SDIO: return "SDIO";
+        default: return "UNKNOWN";
+    }
+}
+
 void app_main(void)
 {
+    /* Reset reason survives brownout/watchdog/panic resets, unlike printf
+     * output, which can be lost if the USB-CDC port drops before flushing. */
+    esp_reset_reason_t reset_reason = esp_reset_reason();
+    ESP_LOGI(TAG, "Reset reason: %d (%s)", (int)reset_reason, reset_reason_name(reset_reason));
+
     // Bus recovery re-reserves pins it already owns, which the IDF gpio
     // reservation tracker can't tell apart from a real conflict; these two
     // tags only ever log that false positive at W, so keep errors visible

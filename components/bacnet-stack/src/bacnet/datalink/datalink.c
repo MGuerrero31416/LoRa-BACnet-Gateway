@@ -10,6 +10,8 @@
 #include "bacnet/bacdef.h"
 #include "bacnet/datalink/datalink.h"
 #include "bacnet/bacstr.h"
+#include "bacnet/npdu.h"
+#include <stdio.h>
 #if defined(BACDL_MULTIPLE) || defined FOR_DOXYGEN
 #if defined(BACDL_ETHERNET)
 #include "bacnet/datalink/ethernet.h"
@@ -158,6 +160,42 @@ int datalink_send_pdu(
             Datalink_Transport = DATALINK_BIP;
         }
     }
+
+    /*
+     * Optional APDU-level send diagnostics (decodes past the NPDU header
+     * via bacnet_npdu_decode to correctly locate pdu-type/invoke/service).
+     * Re-enable by uncommenting when needed.
+     */
+    /*
+    if (pdu_len > 0) {
+        BACNET_NPDU_DATA npdu_data_diag = {0};
+        int apdu_offset = bacnet_npdu_decode(
+            pdu, (uint16_t)pdu_len, NULL, NULL, &npdu_data_diag);
+        unsigned apdu_pdu_type = 0;
+        unsigned apdu_invoke = 0;
+        unsigned apdu_service = 0;
+
+        if (apdu_offset > 0 && (unsigned)apdu_offset < pdu_len) {
+            apdu_pdu_type = pdu[apdu_offset] >> 4;
+            if ((unsigned)(apdu_offset + 1) < pdu_len) {
+                apdu_invoke = pdu[apdu_offset + 1];
+            }
+            if ((unsigned)(apdu_offset + 2) < pdu_len) {
+                apdu_service = pdu[apdu_offset + 2];
+            }
+        }
+
+        printf(
+            "BACnet: datalink_send_pdu() transport=%d apdu_pdu_type=0x%x invoke=%u service=%u apdu_offset=%d pdu_len=%u dest_mac_len=%u\n",
+            (int)Datalink_Transport,
+            apdu_pdu_type,
+            apdu_invoke,
+            apdu_service,
+            apdu_offset,
+            pdu_len,
+            (unsigned)(dest ? dest->mac_len : 0));
+    }
+    */
 #endif
 
     switch (Datalink_Transport) {

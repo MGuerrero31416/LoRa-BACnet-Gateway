@@ -89,12 +89,12 @@ const uint32_t USER_AI_INSTANCES[USER_AI_COUNT] = {
     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
 };
 const char *USER_AI_NAMES[USER_AI_COUNT] = {
-    "TEMP_01", "HR_01", "VOC_01", "PM2.5_01",
-    "TEMP_02", "HR_02", "VOC_02", "PM2.5_02",
-    "TEMP_03", "HR_03", "VOC_03", "PM2.5_03",
-    "TEMP_04", "HR_04", "VOC_04", "PM2.5_04",
-    "TEMP_05", "HR_05", "VOC_05", "PM2.5_05",
-    "TEMP_06", "HR_06", "VOC_06", "PM2.5_06",
+    "01_TEMP", "01_HR", "01_VOC", "01_PM2.5",
+    "02_TEMP", "02_HR", "02_VOC", "02_PM2.5",
+    "03_TEMP", "03_HR", "03_VOC", "03_PM2.5",
+    "04_TEMP", "04_HR", "04_VOC", "04_PM2.5",
+    "05_TEMP", "05_HR", "05_VOC", "05_PM2.5",
+    "06_TEMP", "06_HR", "06_VOC", "06_PM2.5",
     "AI25", "AI26", "AI27", "AI28",
     "AI29", "AI30", "AI31", "AI32"
 };

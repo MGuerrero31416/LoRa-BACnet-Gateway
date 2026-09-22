@@ -66,6 +66,49 @@ static BACNET_COV_SUBSCRIPTION COV_Subscriptions[MAX_COV_SUBCRIPTIONS];
 #endif
 static BACNET_COV_ADDRESS COV_Addresses[MAX_COV_ADDRESSES];
 
+/* Temporary diagnostics: track COV send attempts/outcomes. */
+static uint32_t s_cov_diag_requested = 0;
+static uint32_t s_cov_diag_sent = 0;
+static uint32_t s_cov_diag_blocked_tsm = 0;
+static uint32_t s_cov_diag_blocked_inflight = 0;
+
+void handler_cov_send_diagnostics_get_reset(
+    uint32_t *requested,
+    uint32_t *sent,
+    uint32_t *blocked_tsm,
+    uint32_t *blocked_inflight,
+    uint32_t *active_subscriptions)
+{
+    unsigned i;
+    uint32_t active = 0;
+
+    if (requested) {
+        *requested = s_cov_diag_requested;
+    }
+    if (sent) {
+        *sent = s_cov_diag_sent;
+    }
+    if (blocked_tsm) {
+        *blocked_tsm = s_cov_diag_blocked_tsm;
+    }
+    if (blocked_inflight) {
+        *blocked_inflight = s_cov_diag_blocked_inflight;
+    }
+    if (active_subscriptions) {
+        for (i = 0; i < MAX_COV_SUBCRIPTIONS; i++) {
+            if (COV_Subscriptions[i].flag.valid) {
+                active++;
+            }
+        }
+        *active_subscriptions = active;
+    }
+
+    s_cov_diag_requested = 0;
+    s_cov_diag_sent = 0;
+    s_cov_diag_blocked_tsm = 0;
+    s_cov_diag_blocked_inflight = 0;
+}
+
 /**
  * Gets the address from the list of COV addresses
  *
@@ -686,14 +729,17 @@ bool handler_cov_fsm(void)
             if ((COV_Subscriptions[index].flag.valid) &&
                 (COV_Subscriptions[index].flag.send_requested)) {
                 send = true;
+                s_cov_diag_requested++;
                 if (COV_Subscriptions[index].flag.issueConfirmedNotifications) {
                     if (COV_Subscriptions[index].invokeID != 0) {
                         /* already sending */
                         send = false;
+                        s_cov_diag_blocked_inflight++;
                     }
                     if (!tsm_transaction_available()) {
                         /* no transactions available - can't send now */
                         send = false;
+                        s_cov_diag_blocked_tsm++;
                     }
                 }
                 if (send) {
@@ -715,6 +761,7 @@ bool handler_cov_fsm(void)
                     }
                     if (status) {
                         COV_Subscriptions[index].flag.send_requested = false;
+                        s_cov_diag_sent++;
                     }
                 }
             }

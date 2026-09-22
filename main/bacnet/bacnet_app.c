@@ -677,18 +677,34 @@ void bacnet_app_reset_mstp_diagnostics(void)
     uint32_t preamble_55 = 0;
     uint32_t preamble_55ff = 0;
     uint32_t pdu_count = s_mstp_pdu_count;
+    uint32_t cov_requested = 0;
+    uint32_t cov_sent = 0;
+    uint32_t cov_blocked_tsm = 0;
+    uint32_t cov_blocked_inflight = 0;
+    uint32_t cov_active_subscriptions = 0;
 
     MSTP_RS485_Preamble_Counts_Get_Reset(&preamble_55, &preamble_55ff);
+    handler_cov_send_diagnostics_get_reset(
+        &cov_requested,
+        &cov_sent,
+        &cov_blocked_tsm,
+        &cov_blocked_inflight,
+        &cov_active_subscriptions);
 
     /*
-     * These values are retained for the optional diagnostic log below.
-     * Mark them used while that log remains commented out.
+     * These values are retained for the optional diagnostic logs below.
+     * Mark them used while those logs remain commented out.
      */
     (void)rx_bytes;
     (void)pdu_count;
+    (void)cov_requested;
+    (void)cov_sent;
+    (void)cov_blocked_tsm;
+    (void)cov_blocked_inflight;
+    (void)cov_active_subscriptions;
 
     /*
-     * Optional 30s MS/TP diagnostics log.
+     * Optional 30s MS/TP + COV diagnostics log.
      * Re-enable by uncommenting this block when active wire-level stats are needed.
      */
     /*
@@ -700,6 +716,15 @@ void bacnet_app_reset_mstp_diagnostics(void)
         (unsigned long)preamble_55ff,
         (unsigned long)pdu_count,
         (unsigned long)s_mstp_apdu_count);
+
+    ESP_LOGI(
+        TAG,
+        "COV 30s diag: active_subs=%lu requested=%lu sent=%lu blocked_tsm=%lu blocked_inflight=%lu",
+        (unsigned long)cov_active_subscriptions,
+        (unsigned long)cov_requested,
+        (unsigned long)cov_sent,
+        (unsigned long)cov_blocked_tsm,
+        (unsigned long)cov_blocked_inflight);
     */
 
     s_mstp_pdu_count = 0;

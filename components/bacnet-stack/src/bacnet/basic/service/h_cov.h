@@ -43,6 +43,13 @@ BACNET_STACK_EXPORT
 void handler_cov_init(void);
 BACNET_STACK_EXPORT
 int handler_cov_encode_subscriptions(uint8_t *apdu, int max_apdu);
+BACNET_STACK_EXPORT
+void handler_cov_send_diagnostics_get_reset(
+    uint32_t *requested,
+    uint32_t *sent,
+    uint32_t *blocked_tsm,
+    uint32_t *blocked_inflight,
+    uint32_t *active_subscriptions);
 
 #ifdef __cplusplus
 }
