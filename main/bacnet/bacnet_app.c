@@ -39,6 +39,8 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "esp_random.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/semphr.h"
@@ -77,6 +79,7 @@ static volatile uint32_t s_mstp_wp_total = 0;
 static uint64_t s_core_last_fast_tick_us = 0;
 static uint64_t s_core_last_slow_tick_us = 0;
 static uint32_t s_mstp_i_am_tick = 0;
+static uint32_t s_mstp_startup_i_am_tick = 0;
 static uint32_t s_mstp_diag_reset_tick = 0;
 
 static void bacnet_register_with_bbmd(void);
@@ -382,6 +385,12 @@ esp_err_t bacnet_app_init(
      */
     Device_Init(NULL);
 
+    BACNET_TIMESTAMP restart_timestamp = {0};
+    bacapp_timestamp_sequence_set(
+        &restart_timestamp,
+        (uint16_t)(esp_random() & 0xFFFFU));
+    Device_Set_Time_Of_Restart(&restart_timestamp);
+
     User_Settings_InitDeviceIdentity();
 
     Device_Set_Object_Instance_Number(
@@ -428,15 +437,20 @@ esp_err_t bacnet_app_init(
      * Create application BACnet objects.
      */
     bacnet_create_analog_inputs();
+    /* Provisionally disabled: only LoRa transmitter AI objects are exposed.
     bacnet_create_analog_values();
     bacnet_create_binary_inputs();
     bacnet_create_binary_values();
     bacnet_create_binary_outputs_with_gpio_sync();
+    */
+
+    handler_cov_restore_persisted_subscriptions();
 
     /*
-     * Send I-Am only on transports that initialized successfully.
+     * Send the B/IP I-Am during initialization. MS/TP announcements are
+     * deferred until the receive/core tasks are active.
      */
-    ESP_LOGI(TAG, "Broadcasting I-Am");
+    ESP_LOGI(TAG, "Broadcasting B/IP I-Am");
 
     if (s_bip_ready) {
         bacnet_datalink_lock(s_datalink_bip);
@@ -444,13 +458,8 @@ esp_err_t bacnet_app_init(
         bacnet_datalink_unlock();
     }
 
-    if (s_mstp_ready) {
-        bacnet_datalink_lock(s_datalink_mstp);
-        Send_I_Am(Handler_Transmit_Buffer);
-        bacnet_datalink_unlock();
-    }
-
     s_mstp_i_am_tick = 0;
+    s_mstp_startup_i_am_tick = 0;
     s_mstp_diag_reset_tick = 0;
 
     ESP_LOGI(
@@ -651,6 +660,11 @@ void bacnet_app_maintenance_1s(void)
 #endif
 
     if (s_mstp_ready) {
+        s_mstp_startup_i_am_tick++;
+        if (s_mstp_startup_i_am_tick <= 60 &&
+            (s_mstp_startup_i_am_tick % 5) == 0) {
+            bacnet_app_send_mstp_i_am();
+        }
         if (++s_mstp_i_am_tick % 60 == 0) {
             bacnet_app_send_mstp_i_am();
         }
@@ -1069,7 +1083,9 @@ static void bacnet_cov_process_full_cycle(void)
         (unsigned)BACNET_COV_FSM_MAX_STEPS);
 }
 
+/* Provisionally disabled with Binary Output objects.
 static uint8_t dispatcher_bo1_last_state = BINARY_INACTIVE;
+*/
 
 static void bacnet_dispatcher_tick_100ms(void)
 {
@@ -1110,9 +1126,11 @@ static void bacnet_dispatcher_tick_100ms(void)
         bacnet_datalink_unlock();
     }
 
+    /* Provisionally disabled with Binary Output objects.
     dispatcher_bo1_last_state =
         Binary_Output_Present_Value(
             USER_BO_INSTANCES[0]);
+    */
 }
 
 static void bacnet_dispatcher_tick_1s(void)

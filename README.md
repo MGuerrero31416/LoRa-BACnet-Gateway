@@ -20,7 +20,8 @@ The project is optimized for the gateway use case. BACnet identity, transport se
 
 ## 🎛️ Gateway build selection
 
-Use the ESP-IDF target selection normally, then keep the single active hardware profile:
+Use the ESP-IDF target selection normally, then select the hardware/display
+profile in Menuconfig:
 
 ```text
 ESP-IDF: Set Espressif Device Target
@@ -30,15 +31,24 @@ Project hardware
     └── LoRa 32 V4 SX1262 gateway receiver
 ```
 
+Hardware profiles are configurable at compile time. The profile selection is
+the integration point for other processor boards, displays, and display
+drivers; a profile can provide its own GPIO mapping, UI, and optional
+peripherals. The active project configuration includes the LoRa gateway
+profile, and additional profiles can be added to the same Menuconfig choice.
+
 After changing the target or GPIO mapping, run a full clean build.
 
 ## 📊 BACnet Object Model
 
-The gateway build exposes 60 BACnet objects in the current firmware. The active profile maps received LoRa packet values into the BACnet object model while keeping the broader AI/AV/BV ranges available for monitoring and expansion.
+The gateway build exposes 32 BACnet objects in the current firmware. The
+active profile maps received LoRa packet values into the BACnet object model
+while keeping the configured AV, BV, BI, and BO objects available for
+monitoring and expansion.
 
 | Objects     | Default purpose                                           |
 | ----------- | --------------------------------------------------------- |
-| `AI1–AI32`  | General-purpose Analog Inputs and telemetry channels       |
+| `AI1–AI16`  | General-purpose Analog Inputs and telemetry channels       |
 | `AV1–AV16`  | Available general Analog Values                           |
 | `BV1–BV4`   | Available general Binary Values                           |
 | `BI1–BI4`   | Available general Binary Inputs                           |

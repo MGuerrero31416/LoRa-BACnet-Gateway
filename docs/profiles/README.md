@@ -1,6 +1,11 @@
 # Gateway profile
 
-The active release build is the LoRa gateway profile only.
+The project uses compile-time hardware/display profiles selected from the
+`Project hardware` menu in Menuconfig. A profile can target a different
+processor board or display and can provide its own GPIO mapping, UI, display
+driver, and optional peripherals.
+
+The active release configuration currently exposes the LoRa gateway profile.
 
 Select the processor with:
 

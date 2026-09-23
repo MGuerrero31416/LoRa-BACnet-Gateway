@@ -29,6 +29,7 @@ static bool display_ready;
 static uint32_t received_count;
 static uint32_t received_device_id;
 
+/* Translate u8g2 I2C transfers into ESP-IDF master-bus transactions. */
 static uint8_t u8g2_i2c_callback(
     u8x8_t *u8x8,
     uint8_t message,
@@ -70,6 +71,7 @@ static uint8_t u8g2_i2c_callback(
     return 1;
 }
 
+/* Provide the GPIO and timing callbacks required by the u8g2 driver. */
 static uint8_t u8g2_gpio_delay_callback(
     u8x8_t *u8x8,
     uint8_t message,
@@ -103,20 +105,23 @@ static uint8_t u8g2_gpio_delay_callback(
     return 1;
 }
 
+/* Send the completed u8g2 framebuffer to the OLED over I2C. */
 static void display_send_buffer(void)
 {
     u8g2_SendBuffer(&display);
 }
 
-static void display_draw_values(float voc, float pm25)
+/* Draw the complete four-line gateway status view from the latest packet. */
+static void display_draw_values(float voc, float pm25, float temperature, float humidity)
 {
     char line[24];
+    char value[12];
 
     u8g2_ClearBuffer(&display);
 
-    // --- Line 1: Received counter ---
+    // --- Line 1: Received device ID ---
     u8g2_SetFont(&display, u8g2_font_6x13B_tr); // Set to BOLD for header
-    (void)snprintf(line, sizeof(line), "RECEIVED: %" PRIu32, received_count);
+    (void)snprintf(line, sizeof(line), "RECEIVED FROM: %" PRIu32, received_device_id);
     u8g2_DrawStr(&display, 0, 13, line);
 
     // Draw a visual separator line directly under the header cell (at Y = 15)
@@ -126,21 +131,27 @@ static void display_draw_values(float voc, float pm25)
     u8g2_SetFont(&display, u8g2_font_6x13_tr);  // Switch back to regular font
 
     // Line 2 (Data Line 1)
-    (void)snprintf(line, sizeof(line), "Device ID: %" PRIu32, received_device_id);
+    (void)snprintf(line, sizeof(line), "Packages received: %" PRIu32, received_count);
     u8g2_DrawStr(&display, 0, 31, line);
 
-    // Line 3 (Data Line 2)
-    (void)snprintf(line, sizeof(line), "VOC: %.0f", (double)voc);
-    u8g2_DrawStr(&display, 0, 47, line);
+    // Lines 3-4: Fixed columns keep the T and HR fields aligned.
+    u8g2_DrawStr(&display, 0, 47, "VOC:");
+    (void)snprintf(value, sizeof(value), "%.0f", (double)voc);
+    u8g2_DrawStr(&display, 30, 47, value);
+    u8g2_DrawStr(&display, 74, 47, "T:");
+    (void)snprintf(value, sizeof(value), "%.1f", (double)temperature);
+    u8g2_DrawStr(&display, 90, 47, value);
 
-    // Line 4 (Data Line 3)
-    (void)snprintf(line, sizeof(line), "PM2.5: %.0f", (double)pm25);
-    u8g2_DrawStr(&display, 0, 63, line);
+    u8g2_DrawStr(&display, 0, 63, "PM2.5:");
+    (void)snprintf(value, sizeof(value), "%.0f", (double)pm25);
+    u8g2_DrawStr(&display, 42, 63, value);
+    u8g2_DrawStr(&display, 74, 63, "HR:");
+    (void)snprintf(value, sizeof(value), "%.0f", (double)humidity);
+    u8g2_DrawStr(&display, 96, 63, value);
 
     display_send_buffer();
 }
-
-
+/* Initialize the OLED power, I2C bus, u8g2 driver, and initial screen. */
 void display_init(void)
 {
     const gpio_config_t output = {
@@ -178,7 +189,7 @@ void display_init(void)
     u8g2_SetPowerSave(&display, 0);
     u8g2_SetContrast(&display, 140);
     display_ready = true;
-    display_draw_values(0.0f, 0.0f);
+    display_draw_values(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 void display_set_link_status(bool wifi_connected, bool mstp_connected)
@@ -187,7 +198,13 @@ void display_set_link_status(bool wifi_connected, bool mstp_connected)
     (void)mstp_connected;
 }
 
-void display_update_lora_values(float voc, float pm25, uint32_t device_id)
+/* Store the latest accepted packet values and refresh the OLED display. */
+void display_update_lora_values(
+    float voc,
+    float pm25,
+    float temperature,
+    float humidity,
+    uint32_t device_id)
 {
     if (!display_ready) {
         return;
@@ -195,5 +212,5 @@ void display_update_lora_values(float voc, float pm25, uint32_t device_id)
 
     received_count++;
     received_device_id = device_id;
-    display_draw_values(voc, pm25);
+    display_draw_values(voc, pm25, temperature, humidity);
 }

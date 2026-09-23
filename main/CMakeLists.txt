@@ -87,6 +87,16 @@ target_link_libraries(
     INTERFACE
         "-Wl,--undefined=__wrap_esp_log_write"
         "-Wl,--undefined=__wrap_esp_log_writev"
+    "-Wl,--undefined=bacnet_nvs_save_av_name"
+    "-Wl,--undefined=bacnet_nvs_save_av_desc"
+    "-Wl,--undefined=bacnet_nvs_save_av_units"
+    "-Wl,--undefined=bacnet_nvs_save_av_pv"
+    "-Wl,--undefined=bacnet_nvs_save_bi_name"
+    "-Wl,--undefined=bacnet_nvs_save_bi_desc"
+    "-Wl,--undefined=bacnet_nvs_save_bo_name"
+    "-Wl,--undefined=bacnet_nvs_save_bo_desc"
+    "-Wl,--undefined=bacnet_nvs_save_bv_name"
+    "-Wl,--undefined=bacnet_nvs_save_bv_desc"
 )
 
 set_source_files_properties(

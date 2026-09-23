@@ -703,6 +703,11 @@ void bacnet_create_analog_inputs(void)
             if (!app_storage_override_enabled()) {
                 bacnet_nvs_load_ai(instance);
             }
+
+        /* LoRa measurements are invalid until a fresh packet is accepted. */
+        Analog_Input_Present_Value_Set(
+            instance,
+            USER_AI_INITIAL_VALUES[i]);
     }
 
     ESP_LOGI(

@@ -1,6 +1,6 @@
 # BACnet Objects Configuration
 
-This repository currently exposes 60 BACnet objects across 5 object types.
+This repository currently exposes 32 BACnet objects across 5 object types.
 
 ## Object Counts
 
@@ -10,11 +10,11 @@ The counts are defined in `main/User_Settings.h`:
 |------|-------|---------------|
 | Analog Values | 16 | `AV1`-`AV16` |
 | Binary Values | 4 | `BV1`-`BV4` |
-| Analog Inputs | 32 | `AI1`-`AI32` |
+| Analog Inputs | 16 | `AI1`-`AI16` |
 | Binary Inputs | 4 | `BI1`-`BI4` |
 | Binary Outputs | 4 | `BO1`-`BO4` |
 
-Total: `16 + 4 + 32 + 4 + 4 = 60`
+Total: `16 + 4 + 16 + 4 + 4 = 32`
 
 ## Configuration Sources
 
@@ -90,9 +90,9 @@ Startup persistence policy is controlled by `main/app/app_storage.c` together wi
 - `0`: preserve existing NVS data
 - `1`: erase NVS on boot and restore compiled defaults
 
-## Current AI1-AI32 Logical Mapping
+## Current AI1-AI16 Logical Mapping
 
-The active gateway profile keeps the logical AI slots in a fixed order for BACnet compatibility. The current firmware defines 32 configurable analog inputs, and the default arrays in `main/User_Settings.c` populate them as reusable telemetry slots.
+The active gateway profile keeps the logical AI slots in a fixed order for BACnet compatibility. The current firmware defines 16 configurable analog inputs, and the default arrays in `main/User_Settings.c` populate them as reusable telemetry slots.
 
 Default logical mapping:
 
@@ -100,8 +100,7 @@ Default logical mapping:
 |--------------|-----------------|
 | AI1-AI6 | Temperature / humidity / VOC / PM2.5 telemetry groups |
 | AI7-AI12 | Additional telemetry slots |
-| AI13-AI24 | General monitoring channels |
-| AI25-AI32 | Remaining general-purpose analog inputs |
+| AI13-AI16 | Remaining general-purpose analog inputs |
 
 The first Binary Value role remains available as a general-purpose control point:
 
@@ -132,7 +131,8 @@ Edit the corresponding `USER_*` arrays in `main/User_Settings.c`.
 
 ### Change sensor-to-object mapping semantics
 
-Edit `main/app/sensor_service.c` if you need to change which logical AI role receives each sensor measurement.
+Edit the active LoRa-to-BACnet bridge implementation if you need to change
+which logical AI role receives each LoRa measurement.
 
 ## Programmatic Updates
 
@@ -146,7 +146,9 @@ Binary_Input_Present_Value_Set(instance, BINARY_INACTIVE);
 Binary_Output_Present_Value_Set(instance, BINARY_ACTIVE);
 ```
 
-In the current application, `main/app/sensor_service.c` updates sensor-backed AIs using the configured instance numbers returned from `USER_AI_INSTANCES[]`.
+In the current application, `main/app/lora_bacnet_bridge.c` updates
+LoRa-backed AIs using the configured instance numbers returned from
+`USER_AI_INSTANCES[]`.
 
 ## Related Files
 
@@ -154,7 +156,7 @@ In the current application, `main/app/sensor_service.c` updates sensor-backed AI
 - `main/User_Settings.h`
 - `main/User_Settings.c`
 - `main/app/app_storage.c`
-- `main/app/sensor_service.c`
+- `main/app/lora_bacnet_bridge.c`
 - `main/bacnet/bacnet_app.c`
 - `main/bacnet/objects/analog_value.c`
 - `main/bacnet/objects/binary_value.c`

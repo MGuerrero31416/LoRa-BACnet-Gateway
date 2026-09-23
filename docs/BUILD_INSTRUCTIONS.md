@@ -51,11 +51,11 @@ have been checked.
 
 ## BACnet Object Model
 
-The default configuration exposes 36 objects:
+The default configuration exposes 32 objects:
 
 - 16 Analog Values
 - 4 Binary Values
-- 8 Analog Inputs
+- 16 Analog Inputs
 - 4 Binary Inputs
 - 4 Binary Outputs
 

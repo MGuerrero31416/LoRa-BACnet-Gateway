@@ -50,8 +50,8 @@ When ESP-IDF is installed elsewhere, use the ESP-IDF VS Code extension or an ini
 Clone the repository:
 
 ```powershell
-git clone https://github.com/MGuerrero31416/ESP32-BACnet-Master.git
-cd ESP32-BACnet-Master
+git clone https://github.com/MGuerrero31416/LoRa-BACnet-Gateway.git
+cd LoRa-BACnet-Gateway
 ```
 
 Alternatively, copy the complete project folder from another computer.
@@ -327,21 +327,19 @@ Project hardware
 └── Display profile
 ```
 
-Available profiles:
+The profile system is configurable and is the place to select or add support
+for other processor boards, displays, and display drivers. The active project
+configuration currently exposes:
 
 ```text
-ST7796S 480x320 3.5in - colorful UI
-ST7796S 480x320 - test UI
-LVGL T-Display S3 - LilyGO LVGL UI
-ST7789 240x320 - GMT020-02-7P
-ST7789 170x320 - HW657A - Simple UI
 LoRa 32 V4 SX1262 gateway receiver
-No display
 ```
 
-The T-Display-S3 and LoRa 32 V4 profiles are intended for the `esp32s3`
-target. The other profiles are target-independent in Kconfig, but their GPIO
-mappings must still match the physical processor board.
+Profiles are selected from the `Project hardware` menu in Menuconfig. Each
+profile can provide its own UI implementation, GPIO mapping, display driver,
+and optional board peripherals. See [`docs/profiles/`](docs/profiles/) and
+[`docs/DISPLAY_HARDWARE_PROFILES_GUIDE.md`](docs/DISPLAY_HARDWARE_PROFILES_GUIDE.md)
+when adding another board or display.
 
 See [`docs/profiles/`](docs/profiles/) for details.
 
@@ -508,10 +506,10 @@ The default object model contains:
 | ------------- | -----: |
 | Analog Value  |     16 |
 | Binary Value  |      4 |
-| Analog Input  |     32 |
+| Analog Input  |     16 |
 | Binary Input  |      4 |
 | Binary Output |      4 |
-| **Total**     | **60** |
+| **Total**     | **32** |
 
 The object counts and logical roles are defined in:
 
@@ -527,7 +525,7 @@ main/User_Settings.c
 
 Default logical roles include:
 
-* AI1–AI32: LoRa gateway telemetry and general-purpose analog monitoring channels
+* AI1–AI16: LoRa gateway telemetry and general-purpose analog monitoring channels
 * AV1–AV16: generic analog control and telemetry values
 * BV1–BV4: generic binary controls
 * BI1–BI4: generic binary status inputs
@@ -537,11 +535,13 @@ See [`OBJECTS_CONFIGURATION.md`](OBJECTS_CONFIGURATION.md) before changing objec
 
 ---
 
-## 13. Sensor-service layout
+## 13. Legacy sensor-service layout
 
 The gateway build intentionally omits the retired auxiliary-sensor service path. The remaining acquisition task is limited to LoRa packet validation and BACnet publishing.
 
-Legacy sensor-specific services are not part of the release build and should not be reintroduced for this profile.
+Legacy sensor-specific services are not part of the release build and should
+not be reintroduced for this profile. LoRa packet validation and BACnet
+publishing are handled by the gateway application path.
 
 ---
 

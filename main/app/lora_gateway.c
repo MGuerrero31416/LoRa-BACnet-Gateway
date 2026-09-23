@@ -220,7 +220,12 @@ static void lora_gateway_task(void *argument)
         }
 
         lora_gateway_publish_valid_packet(&packet);
-        display_update_lora_values(packet.voc_index, packet.pm2_5_ug_m3, packet.device_id);
+        display_update_lora_values(
+            packet.voc_index,
+            packet.pm2_5_ug_m3,
+            packet.temperature_c,
+            packet.humidity_pct,
+            packet.device_id);
     }
 }
 

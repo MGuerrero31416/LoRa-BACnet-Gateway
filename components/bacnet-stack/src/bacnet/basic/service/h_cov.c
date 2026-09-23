@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "nvs.h"
 /* BACnet Stack defines - first */
 #include "bacnet/bacdef.h"
 /* BACnet Stack API */
@@ -66,11 +67,177 @@ static BACNET_COV_SUBSCRIPTION COV_Subscriptions[MAX_COV_SUBCRIPTIONS];
 #endif
 static BACNET_COV_ADDRESS COV_Addresses[MAX_COV_ADDRESSES];
 
+#define COV_NVS_NAMESPACE "bacnet_cov"
+#define COV_NVS_KEY "subscriptions"
+#define COV_PERSIST_MAGIC 0x434F5631UL
+#define COV_PERSIST_VERSION 1U
+
+typedef struct {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t count;
+} cov_persist_header_t;
+
+typedef struct {
+    uint8_t mac_len;
+    uint8_t mac[MAX_MAC_LEN];
+    uint16_t net;
+    uint8_t len;
+    uint8_t adr[MAX_MAC_LEN];
+    uint32_t subscriber_process_identifier;
+    uint32_t lifetime;
+    uint16_t object_type;
+    uint32_t object_instance;
+    uint8_t issue_confirmed_notifications;
+    int64_t saved_epoch;
+} cov_persist_record_t;
+
 /* Temporary diagnostics: track COV send attempts/outcomes. */
 static uint32_t s_cov_diag_requested = 0;
 static uint32_t s_cov_diag_sent = 0;
 static uint32_t s_cov_diag_blocked_tsm = 0;
 static uint32_t s_cov_diag_blocked_inflight = 0;
+
+static BACNET_ADDRESS *cov_address_get(unsigned index);
+static int cov_address_add(const BACNET_ADDRESS *dest);
+
+static void cov_persist_subscriptions(void)
+{
+    nvs_handle_t handle = 0;
+    cov_persist_header_t header = {
+        .magic = COV_PERSIST_MAGIC,
+        .version = COV_PERSIST_VERSION,
+        .count = 0
+    };
+    static cov_persist_record_t records[MAX_COV_SUBCRIPTIONS];
+    static uint8_t blob[sizeof(cov_persist_header_t) +
+        MAX_COV_SUBCRIPTIONS * sizeof(cov_persist_record_t)];
+
+    if (nvs_open(COV_NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) {
+        return;
+    }
+
+    for (unsigned index = 0; index < MAX_COV_SUBCRIPTIONS; index++) {
+        const BACNET_COV_SUBSCRIPTION *subscription =
+            &COV_Subscriptions[index];
+        if (!subscription->flag.valid || header.count >= MAX_COV_SUBCRIPTIONS) {
+            continue;
+        }
+
+        const BACNET_ADDRESS *destination =
+            cov_address_get(subscription->dest_index);
+        if (destination == NULL) {
+            continue;
+        }
+
+        cov_persist_record_t *record = &records[header.count++];
+        record->mac_len = destination->mac_len;
+        memcpy(record->mac, destination->mac, sizeof(record->mac));
+        record->net = destination->net;
+        record->len = destination->len;
+        memcpy(record->adr, destination->adr, sizeof(record->adr));
+        record->subscriber_process_identifier =
+            subscription->subscriberProcessIdentifier;
+        record->lifetime = subscription->lifetime;
+        record->object_type =
+            (uint16_t)subscription->monitoredObjectIdentifier.type;
+        record->object_instance =
+            subscription->monitoredObjectIdentifier.instance;
+        record->issue_confirmed_notifications =
+            subscription->flag.issueConfirmedNotifications;
+        record->saved_epoch = 0;
+    }
+
+    const size_t blob_size = sizeof(header) +
+        ((size_t)header.count * sizeof(records[0]));
+    memcpy(blob, &header, sizeof(header));
+    memcpy(blob + sizeof(header), records, header.count * sizeof(records[0]));
+    if (nvs_set_blob(handle, COV_NVS_KEY, blob, blob_size) == ESP_OK) {
+        nvs_commit(handle);
+    }
+    nvs_close(handle);
+}
+
+void handler_cov_restore_persisted_subscriptions(void)
+{
+    nvs_handle_t handle = 0;
+    size_t blob_size = 0;
+    cov_persist_header_t header;
+    static cov_persist_record_t records[MAX_COV_SUBCRIPTIONS];
+    static uint8_t blob[sizeof(cov_persist_header_t) +
+        MAX_COV_SUBCRIPTIONS * sizeof(cov_persist_record_t)];
+
+    if (nvs_open(COV_NVS_NAMESPACE, NVS_READONLY, &handle) != ESP_OK ||
+        nvs_get_blob(handle, COV_NVS_KEY, NULL, &blob_size) != ESP_OK ||
+        blob_size < sizeof(header) ||
+        blob_size > sizeof(header) + sizeof(records)) {
+        if (handle) {
+            nvs_close(handle);
+        }
+        return;
+    }
+
+    if (nvs_get_blob(handle, COV_NVS_KEY, blob, &blob_size) != ESP_OK) {
+        nvs_close(handle);
+        return;
+    }
+    nvs_close(handle);
+
+    memcpy(&header, blob, sizeof(header));
+    if (header.magic != COV_PERSIST_MAGIC ||
+        header.version != COV_PERSIST_VERSION ||
+        header.count > MAX_COV_SUBCRIPTIONS ||
+        blob_size < sizeof(header) +
+            ((size_t)header.count * sizeof(records[0]))) {
+        return;
+    }
+    memcpy(records, blob + sizeof(header), header.count * sizeof(records[0]));
+
+    for (unsigned record_index = 0; record_index < header.count; record_index++) {
+        const cov_persist_record_t *record = &records[record_index];
+        BACNET_ADDRESS destination = {0};
+        destination.mac_len = record->mac_len;
+        memcpy(destination.mac, record->mac, sizeof(destination.mac));
+        destination.net = record->net;
+        destination.len = record->len;
+        memcpy(destination.adr, record->adr, sizeof(destination.adr));
+
+        int address_index = cov_address_add(&destination);
+        if (address_index < 0) {
+            continue;
+        }
+
+        for (unsigned index = 0; index < MAX_COV_SUBCRIPTIONS; index++) {
+            if (COV_Subscriptions[index].flag.valid) {
+                continue;
+            }
+            if (!Device_Valid_Object_Id(
+                    (BACNET_OBJECT_TYPE)record->object_type,
+                    record->object_instance) ||
+                !Device_Value_List_Supported(
+                    (BACNET_OBJECT_TYPE)record->object_type)) {
+                break;
+            }
+
+            BACNET_COV_SUBSCRIPTION *subscription =
+                &COV_Subscriptions[index];
+            subscription->flag.valid = true;
+            subscription->flag.issueConfirmedNotifications =
+                record->issue_confirmed_notifications;
+            subscription->flag.send_requested = true;
+            subscription->dest_index = (unsigned)address_index;
+            subscription->subscriberProcessIdentifier =
+                record->subscriber_process_identifier;
+            subscription->lifetime = record->lifetime;
+            subscription->monitoredObjectIdentifier.type =
+                (BACNET_OBJECT_TYPE)record->object_type;
+            subscription->monitoredObjectIdentifier.instance =
+                record->object_instance;
+            subscription->invokeID = 0;
+            break;
+        }
+    }
+}
 
 void handler_cov_send_diagnostics_get_reset(
     uint32_t *requested,
@@ -480,6 +647,8 @@ static bool cov_list_subscribe(
             found = true;
         }
     }
+
+    cov_persist_subscriptions();
 
     return found;
 }

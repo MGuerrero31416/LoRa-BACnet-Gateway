@@ -55,7 +55,7 @@ extern const uint32_t USER_MSTP_BAUD_RATE;
 /* BACnet object defaults */
 #define USER_AV_COUNT 16
 #define USER_BV_COUNT 4
-#define USER_AI_COUNT 32
+#define USER_AI_COUNT 16
 #define USER_BI_COUNT 4
 #define USER_BO_COUNT 4
 
