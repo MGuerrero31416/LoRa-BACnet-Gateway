@@ -131,7 +131,7 @@ static void display_draw_values(float voc, float pm25, float temperature, float 
     u8g2_SetFont(&display, u8g2_font_6x13_tr);  // Switch back to regular font
 
     // Line 2 (Data Line 1)
-    (void)snprintf(line, sizeof(line), "Packages received: %" PRIu32, received_count);
+    (void)snprintf(line, sizeof(line), "Packs recvd: %" PRIu32, received_count);
     u8g2_DrawStr(&display, 0, 31, line);
 
     // Lines 3-4: Fixed columns keep the T and HR fields aligned.
