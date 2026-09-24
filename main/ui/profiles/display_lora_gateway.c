@@ -121,7 +121,7 @@ static void display_draw_values(float voc, float pm25, float temperature, float 
 
     // --- Line 1: Received device ID ---
     u8g2_SetFont(&display, u8g2_font_6x13B_tr); // Set to BOLD for header
-    (void)snprintf(line, sizeof(line), "RECEIVED FROM: %" PRIu32, received_device_id);
+    (void)snprintf(line, sizeof(line), "TX ID: %" PRIu32, received_device_id);
     u8g2_DrawStr(&display, 0, 13, line);
 
     // Draw a visual separator line directly under the header cell (at Y = 15)
@@ -131,7 +131,7 @@ static void display_draw_values(float voc, float pm25, float temperature, float 
     u8g2_SetFont(&display, u8g2_font_6x13_tr);  // Switch back to regular font
 
     // Line 2 (Data Line 1)
-    (void)snprintf(line, sizeof(line), "Packs recvd: %" PRIu32, received_count);
+    (void)snprintf(line, sizeof(line), "Packs rcvd: %" PRIu32, received_count);
     u8g2_DrawStr(&display, 0, 31, line);
 
     // Lines 3-4: Fixed columns keep the T and HR fields aligned.
