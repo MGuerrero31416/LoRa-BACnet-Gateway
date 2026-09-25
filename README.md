@@ -39,6 +39,32 @@ profile, and additional profiles can be added to the same Menuconfig choice.
 
 After changing the target or GPIO mapping, run a full clean build.
 
+### Gateway OLED
+
+The gateway profile uses the Heltec board's 128x64 SSD1315 OLED over I2C. The
+display shows the most recently accepted LoRa packet:
+
+```text
+TX ID: <device id>
+Packs rcvd: <count>
+VOC: <value>       T: <temperature>
+PM2.5: <value>     HR: <humidity>
+```
+
+The current wiring and bus settings are:
+
+| Signal | GPIO or value |
+| ------ | ------------- |
+| I2C address | `0x3C` |
+| SDA | `17` |
+| SCL | `18` |
+| OLED reset | `21` |
+| OLED VEXT | `36` |
+| I2C speed | `400 kHz` |
+
+The display implementation is in
+[`main/ui/profiles/display_lora_gateway.c`](main/ui/profiles/display_lora_gateway.c).
+
 ## 📊 BACnet Object Model
 
 The gateway build exposes 32 BACnet objects in the current firmware. The
