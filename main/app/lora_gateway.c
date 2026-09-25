@@ -23,8 +23,11 @@
 #include "lora_bacnet_bridge.h"
 #include "lora_packet_validation.h"
 #include "lora_radio.h"
+#include "lora_rx_dispatch.h"
 #include "lora_rx_orchestration.h"
+#include "lora_rx_reject.h"
 #include "lora_state_store.h"
+#include "lora_ui_result.h"
 #include "User_Settings.h"
 #include "esp_check.h"
 #include "esp_err.h"
@@ -55,8 +58,6 @@ static const lora_radio_config_t g_lora_radio = {
     .packet_max_len = LORA_PACKET_MAX_LEN,
 };
 
-static uint32_t g_reject_counter[8] = {0U};
-
 bool lora_device_id_valid(uint32_t device_id)
 {
     return device_id >= LORA_DEVICE_ID_MIN && device_id <= LORA_DEVICE_ID_MAX;
@@ -69,23 +70,7 @@ bool lora_gateway_get_device_state(uint32_t device_id, lora_device_state_t *devi
 
 static void lora_gateway_publish_valid_packet(const lora_gateway_packet_data_t *packet)
 {
-    if (packet == NULL || !lora_device_id_valid(packet->device_id)) {
-        return;
-    }
-
-    lora_state_store_update(packet->device_id, packet);
-
-    lora_bacnet_trigger_publish();
-
-    ESP_LOGI(TAG,
-             "accepted LoRa packet device=%" PRIu32 " seq=%" PRIu32 " temp=%.2f RH=%.2f PM2.5=%.2f VOC=%.2f status=%u",
-             packet->device_id,
-             packet->sequence,
-             packet->temperature_c,
-             packet->humidity_pct,
-             packet->pm2_5_ug_m3,
-             packet->voc_index,
-             packet->status);
+    (void)lora_rx_dispatch_apply_packet(packet);
 }
 
 static void lora_gateway_task(void *argument)
@@ -122,39 +107,30 @@ static void lora_gateway_task(void *argument)
         uint8_t length = 0U;
         esp_err_t read_result = lora_radio_read_packet(data, sizeof(data), &length, &irq_status);
         if (read_result == ESP_ERR_INVALID_CRC) {
-            g_reject_counter[LORA_PACKET_REJECT_CRC]++;
-            ESP_LOGW(TAG, "reject CRC");
+            lora_rx_reject_record_crc();
             continue;
         }
         if (read_result == ESP_ERR_INVALID_SIZE) {
-            g_reject_counter[LORA_PACKET_REJECT_LENGTH]++;
-            ESP_LOGW(TAG, "reject length=%u expected=%u", length, LORA_GATEWAY_PACKET_LEN);
+            lora_rx_reject_record_length(length, LORA_GATEWAY_PACKET_LEN);
             continue;
         }
         if (read_result == ESP_ERR_TIMEOUT) {
             continue;
         }
         if (read_result != ESP_OK) {
-            g_reject_counter[LORA_PACKET_REJECT_PARSE]++;
-            ESP_LOGW(TAG, "reject packet read");
+            lora_rx_reject_record_parse();
             continue;
         }
 
         if (length != LORA_GATEWAY_PACKET_LEN) {
-            g_reject_counter[LORA_PACKET_REJECT_LENGTH]++;
-            ESP_LOGW(TAG, "reject length=%u expected=%u", length, LORA_GATEWAY_PACKET_LEN);
+            lora_rx_reject_record_length(length, LORA_GATEWAY_PACKET_LEN);
             continue;
         }
 
         uint32_t packet_device_id = 0U;
         memcpy(&packet_device_id, &data[1], sizeof(packet_device_id));
         if (!lora_device_id_valid(packet_device_id)) {
-            g_reject_counter[LORA_PACKET_REJECT_DEVICE_ID]++;
-            ESP_LOGW(TAG,
-                     "reject device_id=%" PRIu32 " expected_range=%u..%u",
-                     packet_device_id,
-                     LORA_DEVICE_ID_MIN,
-                     LORA_DEVICE_ID_MAX);
+            lora_rx_reject_record_device_id(packet_device_id);
             continue;
         }
 
@@ -178,20 +154,12 @@ static void lora_gateway_task(void *argument)
                 &packet_device_id,
                 &packet,
                 &reason)) {
-            if (reason < (sizeof(g_reject_counter) / sizeof(g_reject_counter[0]))) {
-                g_reject_counter[reason]++;
-            }
-            ESP_LOGW(TAG, "reject packet reason=%u", (unsigned)reason);
+            lora_rx_reject_record(reason, packet_device_id, length, LORA_GATEWAY_PACKET_LEN);
             continue;
         }
 
         lora_gateway_publish_valid_packet(&packet);
-        display_update_lora_values(
-            packet.voc_index,
-            packet.pm2_5_ug_m3,
-            packet.temperature_c,
-            packet.humidity_pct,
-            packet.device_id);
+        lora_ui_result_handle(&packet);
     }
 }
 

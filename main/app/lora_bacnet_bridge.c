@@ -3,6 +3,7 @@
 #include "analog_input.h"
 #include "app_storage.h"
 #include "lora_gateway.h"
+#include "lora_state_store.h"
 #include "User_Settings.h"
 
 #include "bacnet/basic/object/ai.h"
@@ -142,7 +143,14 @@ static void lora_bacnet_scheduler_task(void *argument)
 
     for (;;) {
         xSemaphoreTake(g_lora_bacnet_publish_sem, portMAX_DELAY);
-        lora_bacnet_publish_all();
+
+        uint32_t dirty_device_ids[LORA_DEVICE_ID_MAX + 1U] = {0U};
+        const size_t dirty_device_count =
+            lora_state_store_get_dirty_device_ids(dirty_device_ids, sizeof(dirty_device_ids) / sizeof(dirty_device_ids[0]));
+
+        for (size_t index = 0U; index < dirty_device_count; ++index) {
+            lora_bacnet_publish_device(dirty_device_ids[index]);
+        }
     }
 }
 
