@@ -23,6 +23,7 @@
 #include "lora_bacnet_bridge.h"
 #include "lora_packet_validation.h"
 #include "lora_radio.h"
+#include "lora_rx_orchestration.h"
 #include "lora_state_store.h"
 #include "User_Settings.h"
 #include "esp_check.h"
@@ -164,15 +165,17 @@ static void lora_gateway_task(void *argument)
             ESP_LOGE(TAG, "device state unavailable");
             continue;
         }
+
         const uint32_t last_accepted_sequence =
             device_state.valid ? device_state.last_sequence : packet_sequence - 1U;
         lora_packet_reason_t reason = LORA_PACKET_ACCEPTED;
         lora_gateway_packet_data_t packet = {0};
-        if (!lora_packet_validation_decode(
+        if (!lora_rx_orchestration_prepare_packet(
                 data,
                 length,
                 expected_version,
                 last_accepted_sequence,
+                &packet_device_id,
                 &packet,
                 &reason)) {
             if (reason < (sizeof(g_reject_counter) / sizeof(g_reject_counter[0]))) {

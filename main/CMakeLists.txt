@@ -5,6 +5,7 @@ set(APP_SRCS
     "app/lora_packet.c"
     "app/lora_packet_validation.c"
     "app/lora_radio.c"
+    "app/lora_rx_orchestration.c"
     "app/lora_state_store.c"
 
     "app/app_storage.c"
