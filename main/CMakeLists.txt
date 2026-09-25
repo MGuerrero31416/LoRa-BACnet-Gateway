@@ -3,6 +3,9 @@ set(APP_SRCS
 
     "app/lora_bacnet_bridge.c"
     "app/lora_packet.c"
+    "app/lora_packet_validation.c"
+    "app/lora_radio.c"
+    "app/lora_state_store.c"
 
     "app/app_storage.c"
     "app/app_supervisor.c"

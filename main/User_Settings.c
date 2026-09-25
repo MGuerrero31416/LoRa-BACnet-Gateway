@@ -8,7 +8,7 @@
 
 #include "User_Private_Settings.h"
 
-const char USER_BACNET_FIRMWARE_REVISION[] = "LB1.2 2026_09_22";
+const char USER_BACNET_FIRMWARE_REVISION[] = "LB1.3 2026_09_25";
 const bool USER_ENABLE_BACNET_IP = true;
 const bool USER_WIFI_USE_STATIC_IP = true;
 const char USER_WIFI_STATIC_IP_ADDR[] = "10.120.245.94";

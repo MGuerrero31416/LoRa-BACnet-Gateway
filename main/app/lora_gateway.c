@@ -21,6 +21,9 @@
 #include "lora_gateway.h"
 
 #include "lora_bacnet_bridge.h"
+#include "lora_packet_validation.h"
+#include "lora_radio.h"
+#include "lora_state_store.h"
 #include "User_Settings.h"
 #include "esp_check.h"
 #include "esp_err.h"
@@ -51,8 +54,6 @@ static const lora_radio_config_t g_lora_radio = {
     .packet_max_len = LORA_PACKET_MAX_LEN,
 };
 
-static lora_device_state_t g_lora_devices[LORA_DEVICE_ID_MAX + 1U] = {0U};
-static SemaphoreHandle_t g_lora_devices_mutex = NULL;
 static uint32_t g_reject_counter[8] = {0U};
 
 bool lora_device_id_valid(uint32_t device_id)
@@ -62,14 +63,7 @@ bool lora_device_id_valid(uint32_t device_id)
 
 bool lora_gateway_get_device_state(uint32_t device_id, lora_device_state_t *device_state)
 {
-    if (!lora_device_id_valid(device_id) || device_state == NULL || g_lora_devices_mutex == NULL) {
-        return false;
-    }
-
-    xSemaphoreTake(g_lora_devices_mutex, portMAX_DELAY);
-    *device_state = g_lora_devices[device_id];
-    xSemaphoreGive(g_lora_devices_mutex);
-    return true;
+    return lora_state_store_get(device_id, device_state);
 }
 
 static void lora_gateway_publish_valid_packet(const lora_gateway_packet_data_t *packet)
@@ -78,17 +72,7 @@ static void lora_gateway_publish_valid_packet(const lora_gateway_packet_data_t *
         return;
     }
 
-    xSemaphoreTake(g_lora_devices_mutex, portMAX_DELAY);
-    lora_device_state_t *device_state = &g_lora_devices[packet->device_id];
-    device_state->device_id = packet->device_id;
-    device_state->last_sequence = packet->sequence;
-    device_state->temperature_c = packet->temperature_c;
-    device_state->humidity_pct = packet->humidity_pct;
-    device_state->voc_index = packet->voc_index;
-    device_state->pm2_5_ug_m3 = packet->pm2_5_ug_m3;
-    device_state->status = packet->status;
-    device_state->valid = true;
-    xSemaphoreGive(g_lora_devices_mutex);
+    lora_state_store_update(packet->device_id, packet);
 
     lora_bacnet_trigger_publish();
 
@@ -113,21 +97,13 @@ static void lora_gateway_task(void *argument)
     uint8_t data[LORA_GATEWAY_PACKET_LEN] = {0};
     bool receive_setup_error_logged = false;
 
-    if (sx1262_configure(&g_lora_radio) != ESP_OK) {
+    if (lora_radio_init(&g_lora_radio) != ESP_OK) {
         ESP_LOGE(TAG, "SX1262 configure failed");
         vTaskDelete(NULL);
     }
 
     for (;;) {
-        lora_hal_fem_set_rx();
-        lora_hal_clear_event();
-        esp_err_t receive_setup_result = sx1262_set_irq_mask(SX1262_IRQ_RX_EVENTS);
-        if (receive_setup_result == ESP_OK) {
-            receive_setup_result = sx1262_clear_irq();
-        }
-        if (receive_setup_result == ESP_OK) {
-            receive_setup_result = sx1262_start_rx_continuous();
-        }
+        esp_err_t receive_setup_result = lora_radio_start_rx();
         if (receive_setup_result != ESP_OK) {
             if (!receive_setup_error_logged) {
                 ESP_LOGE(TAG, "radio receive setup failed: %s", esp_err_to_name(receive_setup_result));
@@ -141,44 +117,31 @@ static void lora_gateway_task(void *argument)
             receive_setup_error_logged = false;
         }
 
-        if (!lora_hal_wait_event(portMAX_DELAY)) {
-            continue;
-        }
-
         uint16_t irq_status = 0U;
         uint8_t length = 0U;
-        uint8_t offset = 0U;
-        if (sx1262_get_irq_status(&irq_status) != ESP_OK || sx1262_clear_irq() != ESP_OK) {
-            ESP_LOGW(TAG, "radio IRQ read failed");
-            continue;
-        }
-
-        if ((irq_status & SX1262_IRQ_CRC_ERROR) != 0U) {
+        esp_err_t read_result = lora_radio_read_packet(data, sizeof(data), &length, &irq_status);
+        if (read_result == ESP_ERR_INVALID_CRC) {
             g_reject_counter[LORA_PACKET_REJECT_CRC]++;
             ESP_LOGW(TAG, "reject CRC");
             continue;
         }
-
-        if ((irq_status & SX1262_IRQ_RX_DONE) == 0U) {
+        if (read_result == ESP_ERR_INVALID_SIZE) {
+            g_reject_counter[LORA_PACKET_REJECT_LENGTH]++;
+            ESP_LOGW(TAG, "reject length=%u expected=%u", length, LORA_GATEWAY_PACKET_LEN);
             continue;
         }
-
-        if (sx1262_get_rx_buffer_status(&length, &offset) != ESP_OK) {
+        if (read_result == ESP_ERR_TIMEOUT) {
+            continue;
+        }
+        if (read_result != ESP_OK) {
             g_reject_counter[LORA_PACKET_REJECT_PARSE]++;
-            ESP_LOGW(TAG, "reject radio buffer status");
+            ESP_LOGW(TAG, "reject packet read");
             continue;
         }
 
         if (length != LORA_GATEWAY_PACKET_LEN) {
             g_reject_counter[LORA_PACKET_REJECT_LENGTH]++;
             ESP_LOGW(TAG, "reject length=%u expected=%u", length, LORA_GATEWAY_PACKET_LEN);
-            continue;
-        }
-
-        memset(data, 0, sizeof(data));
-        if (sx1262_read_buffer(offset, data, length) != ESP_OK) {
-            g_reject_counter[LORA_PACKET_REJECT_PARSE]++;
-            ESP_LOGW(TAG, "reject packet read");
             continue;
         }
 
@@ -205,7 +168,7 @@ static void lora_gateway_task(void *argument)
             device_state.valid ? device_state.last_sequence : packet_sequence - 1U;
         lora_packet_reason_t reason = LORA_PACKET_ACCEPTED;
         lora_gateway_packet_data_t packet = {0};
-        if (!lora_packet_decode(
+        if (!lora_packet_validation_decode(
                 data,
                 length,
                 expected_version,
@@ -237,15 +200,12 @@ esp_err_t lora_gateway_start(TaskHandle_t *task_handle)
 
     ESP_RETURN_ON_ERROR(lora_hal_init(), TAG, "LoRa HAL init failed");
 
-    g_lora_devices_mutex = xSemaphoreCreateMutex();
-    if (g_lora_devices_mutex == NULL) {
+    if (!lora_state_store_init()) {
         return ESP_ERR_NO_MEM;
     }
 
     BaseType_t result = xTaskCreate(lora_gateway_task, "lora_gateway", 4096, NULL, 4, task_handle);
     if (result != pdPASS) {
-        vSemaphoreDelete(g_lora_devices_mutex);
-        g_lora_devices_mutex = NULL;
         *task_handle = NULL;
         return ESP_ERR_NO_MEM;
     }
