@@ -14,11 +14,14 @@ bool lora_rx_dispatch_apply_packet(const lora_gateway_packet_data_t *packet)
         return false;
     }
 
-    if (!lora_state_store_update(packet->device_id, packet)) {
+    bool publish_needed = false;
+    if (!lora_state_store_update(packet->device_id, packet, &publish_needed)) {
         return false;
     }
 
-    lora_bacnet_trigger_publish();
+    if (publish_needed) {
+        lora_bacnet_trigger_publish();
+    }
 
     ESP_LOGI(TAG,
              "accepted LoRa packet device=%" PRIu32 " seq=%" PRIu32 " temp=%.2f RH=%.2f PM2.5=%.2f VOC=%.2f status=%u",

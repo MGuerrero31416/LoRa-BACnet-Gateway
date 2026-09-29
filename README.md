@@ -205,17 +205,16 @@ main/
 
 ## Screenshots
 
-### Production installation
+<img src="docs/images/TX.jpg" alt="LoRa sensor transmitter board" width="100%" />
+
+<img src="docs/images/TX-RX.jpg" alt="LoRa transmitter and receiver setup" width="100%" />
+
 
 ![Production installation](docs/images/20260722_124532.jpg)
 
-### ESP32 BACnet hardware
-
 ![ESP32 BACnet hardware](docs/images/20260724_093956.jpg)
 
-### BACnet objects in YABE
 
-This view is not tied to a legacy sensor profile and is represented in the BACnet explorer after commissioning.
 
 
 

@@ -35,9 +35,12 @@ bool lora_state_store_get(uint32_t device_id, lora_device_state_t *device_state)
     return true;
 }
 
-bool lora_state_store_update(uint32_t device_id, const lora_gateway_packet_data_t *packet)
+bool lora_state_store_update(
+    uint32_t device_id,
+    const lora_gateway_packet_data_t *packet,
+    bool *publish_needed)
 {
-    if (!lora_device_id_valid(device_id) || packet == NULL) {
+    if (!lora_device_id_valid(device_id) || packet == NULL || publish_needed == NULL) {
         return false;
     }
 
@@ -47,6 +50,12 @@ bool lora_state_store_update(uint32_t device_id, const lora_gateway_packet_data_
 
     xSemaphoreTake(g_lora_devices_mutex, portMAX_DELAY);
     lora_device_state_t *device_state = &g_lora_devices[device_id];
+    const bool values_changed = !device_state->valid ||
+                                device_state->temperature_c != packet->temperature_c ||
+                                device_state->humidity_pct != packet->humidity_pct ||
+                                device_state->voc_index != packet->voc_index ||
+                                device_state->pm2_5_ug_m3 != packet->pm2_5_ug_m3;
+    *publish_needed = values_changed;
     device_state->device_id = packet->device_id;
     device_state->last_sequence = packet->sequence;
     device_state->temperature_c = packet->temperature_c;
@@ -55,7 +64,9 @@ bool lora_state_store_update(uint32_t device_id, const lora_gateway_packet_data_
     device_state->pm2_5_ug_m3 = packet->pm2_5_ug_m3;
     device_state->status = packet->status;
     device_state->valid = true;
-    g_lora_devices_dirty[device_id] = true;
+    if (values_changed) {
+        g_lora_devices_dirty[device_id] = true;
+    }
     xSemaphoreGive(g_lora_devices_mutex);
     return true;
 }
