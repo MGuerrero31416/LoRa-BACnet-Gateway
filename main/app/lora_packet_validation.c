@@ -53,10 +53,13 @@ bool lora_packet_validation_decode(
     memcpy(&humidity, &packet[13], sizeof(humidity));
     memcpy(&pm2_5, &packet[17], sizeof(pm2_5));
     memcpy(&voc, &packet[21], sizeof(voc));
-    if (!lora_range_valid(temperature, -60.0F, 150.0F) ||
-        !lora_range_valid(humidity, 0.0F, 100.0F) ||
-        !lora_range_valid(pm2_5, 0.0F, 1000.0F) ||
-        !lora_range_valid(voc, 0.0F, 5000.0F)) {
+    const bool values_valid = device_id == 2U
+                                  ? isfinite(voc)
+                                  : lora_range_valid(temperature, -60.0F, 150.0F) &&
+                                        lora_range_valid(humidity, 0.0F, 100.0F) &&
+                                        lora_range_valid(pm2_5, 0.0F, 1000.0F) &&
+                                        lora_range_valid(voc, 0.0F, 5000.0F);
+    if (!values_valid) {
         *reason = LORA_PACKET_REJECT_RANGE;
         return false;
     }

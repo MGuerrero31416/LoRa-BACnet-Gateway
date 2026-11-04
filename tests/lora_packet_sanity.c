@@ -70,6 +70,20 @@ int main(void)
         expect_result("valid sensor ID", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
     }
 
+    make_packet(packet, 2U, 11U);
+    write_float(&packet[9], -1.0F);
+    write_float(&packet[13], -1.0F);
+    write_float(&packet[17], -1.0F);
+    write_float(&packet[21], 6000.0F);
+    expect_result("device 2 analog value", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
+
+    write_float(&packet[21], NAN);
+    expect_result("device 2 non-finite analog", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_RANGE);
+
+    make_packet(packet, 1U, 11U);
+    write_float(&packet[21], 6000.0F);
+    expect_result("device 1 VOC range", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_RANGE);
+
     expect_result("wrong length", packet, sizeof(packet) - 1U, 10U, false, LORA_PACKET_REJECT_LENGTH);
 
     packet[0] = 2U;

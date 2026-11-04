@@ -92,7 +92,7 @@ const uint32_t USER_AI_INSTANCES[USER_AI_COUNT] = {
 };
 const char *USER_AI_NAMES[USER_AI_COUNT] = {
     "01_TEMP", "01_HR", "01_VOC", "01_PM2.5",
-    "02_TEMP", "02_HR", "02_VOC", "02_PM2.5",
+    "02_TEMP", "02_HR", "02_VOC", "02_DO",
     "03_TEMP", "03_HR", "03_VOC", "03_PM2.5",
     "04_TEMP", "04_HR", "04_VOC", "04_PM2.5"
     /* Provisionally disabled: LoRa transmitter IDs 5-6.
@@ -104,7 +104,7 @@ const char *USER_AI_NAMES[USER_AI_COUNT] = {
 };
 const char *USER_AI_DESCRIPTIONS[USER_AI_COUNT] = {
     "Temperature Device 01", "Humidity Device 01", "VOC Index Device 01", "PM2.5 Device 01",
-    "Temperature Device 02", "Humidity Device 02", "VOC Index Device 02", "PM2.5 Device 02",
+    "Temperature Device 02", "Humidity Device 02", "VOC Index Device 02", "Dissolved Oxygen Device 02",
     "Temperature Device 03", "Humidity Device 03", "VOC Index Device 03", "PM2.5 Device 03",
     "Temperature Device 04", "Humidity Device 04", "VOC Index Device 04", "PM2.5 Device 04"
     /* Provisionally disabled: LoRa transmitter IDs 5-6.
@@ -116,7 +116,7 @@ const char *USER_AI_DESCRIPTIONS[USER_AI_COUNT] = {
 };
 const uint16_t USER_AI_UNITS[USER_AI_COUNT] = {
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
-    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
+    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MILLIGRAMS_PER_LITER,
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER
     /* Provisionally disabled: LoRa transmitter IDs 5-6.

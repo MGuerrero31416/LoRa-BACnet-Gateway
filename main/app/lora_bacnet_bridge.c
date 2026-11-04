@@ -15,6 +15,7 @@
 
 #define LORA_BACNET_DEVICE_SLOT_COUNT 4U
 #define LORA_BACNET_PERSIST_INTERVAL_MS 60000U
+#define LORA_BACNET_AI8_SLOT 7U
 
 static TaskHandle_t g_lora_bacnet_scheduler_task_handle = NULL;
 static SemaphoreHandle_t g_lora_bacnet_publish_sem = NULL;
@@ -79,6 +80,11 @@ static void lora_bacnet_publish_ai_value(uint32_t slot, float value)
 static void lora_bacnet_publish_device_values(uint32_t device_id, const lora_device_state_t *device_state)
 {
     if (device_state == NULL || !device_state->valid) {
+        return;
+    }
+
+    if (device_id == 2U) {
+        lora_bacnet_publish_ai_value(LORA_BACNET_AI8_SLOT, device_state->voc_index);
         return;
     }
 

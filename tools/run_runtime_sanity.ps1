@@ -13,10 +13,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $source = "$wslRoot/main/app/lora_packet.c"
+$validation = "$wslRoot/main/app/lora_packet_validation.c"
 $test = "$wslRoot/tests/lora_packet_sanity.c"
 $include = "$wslRoot/main/app"
 
-& wsl bash -lc "gcc -std=c11 -Wall -Wextra -Werror '$source' '$test' -I'$include' -o /tmp/lora_packet_sanity && /tmp/lora_packet_sanity"
+& wsl bash -lc "gcc -std=c11 -Wall -Wextra -Werror '$source' '$validation' '$test' -I'$include' -o /tmp/lora_packet_sanity && /tmp/lora_packet_sanity"
 if ($LASTEXITCODE -ne 0) {
     throw "LoRa packet runtime sanity check failed."
 }

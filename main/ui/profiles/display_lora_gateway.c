@@ -134,6 +134,13 @@ static void display_draw_values(float voc, float pm25, float temperature, float 
     (void)snprintf(line, sizeof(line), "Device ID: %" PRIu32, received_device_id);
     u8g2_DrawStr(&display, 0, 31, line);
 
+    if (received_device_id == 2U) {
+        (void)snprintf(line, sizeof(line), "DO: %.1f mg/L", (double)voc);
+        u8g2_DrawStr(&display, 0, 50, line);
+        display_send_buffer();
+        return;
+    }
+
     // Lines 3-4: Fixed columns keep the T and HR fields aligned.
     u8g2_DrawStr(&display, 0, 47, "VOC:");
     (void)snprintf(value, sizeof(value), "%.0f", (double)voc);
