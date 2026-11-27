@@ -215,8 +215,7 @@ void display_init(void)
     u8g2_SetPowerSave(&display, 0);
     u8g2_SetContrast(&display, 140);
     display_ready = true;
-    u8g2_ClearBuffer(&display);
-    display_send_buffer();
+    display_draw_values(-1.0f, -1.0f, -1.0f, -1.0f);
 }
 
 void display_set_link_status(bool wifi_connected, bool mstp_connected)
