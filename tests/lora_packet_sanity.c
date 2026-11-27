@@ -65,6 +65,16 @@ int main(void)
 {
     uint8_t packet[LORA_GATEWAY_PACKET_LEN];
 
+    for (uint32_t device_id = 0U; device_id <= LORA_DEVICE_ID_MAX + 1U; ++device_id) {
+        const bool expected_enabled =
+            device_id >= LORA_DEVICE_ID_MIN && device_id <= LORA_DEVICE_ID_MAX;
+        if (lora_packet_device_enabled(device_id) != expected_enabled) {
+            fprintf(stderr, "FAIL enabled sensor ID %u\n", (unsigned)device_id);
+            return EXIT_FAILURE;
+        }
+    }
+    puts("PASS enabled sensor IDs");
+
     for (uint32_t device_id = LORA_DEVICE_ID_MIN; device_id <= LORA_DEVICE_ID_MAX; ++device_id) {
         make_packet(packet, device_id, 11U);
         expect_result("valid sensor ID", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
@@ -75,10 +85,38 @@ int main(void)
     write_float(&packet[13], -1.0F);
     write_float(&packet[17], -1.0F);
     write_float(&packet[21], 6000.0F);
-    expect_result("device 2 analog value", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
+    expect_result("device 2 SEN54 ranges", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_RANGE);
 
-    write_float(&packet[21], NAN);
-    expect_result("device 2 non-finite analog", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_RANGE);
+    for (size_t offset = 9U; offset <= 21U; offset += 4U) {
+        make_packet(packet, 2U, 11U);
+        write_float(&packet[offset], NAN);
+        expect_result("device 2 non-finite field", packet, sizeof(packet), 10U, false, LORA_PACKET_REJECT_RANGE);
+    }
+
+    for (uint32_t device_id = 5U; device_id <= 6U; ++device_id) {
+        make_packet(packet, device_id, 11U);
+        write_float(&packet[9], -1234.5F);
+        write_float(&packet[13], 6000.0F);
+        write_float(&packet[17], -1.0F);
+        write_float(&packet[21], 99999.0F);
+        expect_result("generic finite values", packet, sizeof(packet), 10U, true, LORA_PACKET_ACCEPTED);
+        lora_gateway_packet_data_t decoded = {0};
+        lora_packet_reason_t reason = LORA_PACKET_ACCEPTED;
+        if (!lora_packet_decode(packet, sizeof(packet), LORA_GATEWAY_PROTOCOL_VERSION, 10U, &decoded, &reason) ||
+            decoded.temperature_c != -1234.5F || decoded.humidity_pct != 6000.0F ||
+            decoded.voc_index != 99999.0F || decoded.pm2_5_ug_m3 != -1.0F) {
+            fprintf(stderr, "FAIL generic field mapping for device %u\n", (unsigned)device_id);
+            return EXIT_FAILURE;
+        }
+        for (size_t offset = 9U; offset <= 21U; offset += 4U) {
+            uint8_t invalid_packet[LORA_GATEWAY_PACKET_LEN];
+            memcpy(invalid_packet, packet, sizeof(invalid_packet));
+            write_float(&invalid_packet[offset], NAN);
+            expect_result("generic non-finite value", invalid_packet, sizeof(invalid_packet), 10U, false, LORA_PACKET_REJECT_RANGE);
+            write_float(&invalid_packet[offset], INFINITY);
+            expect_result("generic infinite value", invalid_packet, sizeof(invalid_packet), 10U, false, LORA_PACKET_REJECT_RANGE);
+        }
+    }
 
     make_packet(packet, 1U, 11U);
     write_float(&packet[21], 6000.0F);

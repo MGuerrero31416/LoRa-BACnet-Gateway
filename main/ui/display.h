@@ -18,6 +18,9 @@ void display_update_lora_values(
 	float humidity,
 	uint32_t device_id);
 
+/* Refresh the last displayed transmitter if its data has timed out. */
+void display_refresh_lora_timeout(void);
+
 /* Update header link indicators (WiFi and MS/TP). */
 void display_set_link_status(bool wifi_connected, bool mstp_connected);
 

@@ -2,6 +2,9 @@
 
 #include <stddef.h>
 
+#include "User_Settings.h"
+#include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -50,7 +53,7 @@ bool lora_state_store_update(
 
     xSemaphoreTake(g_lora_devices_mutex, portMAX_DELAY);
     lora_device_state_t *device_state = &g_lora_devices[device_id];
-    const bool values_changed = !device_state->valid ||
+    const bool values_changed = !device_state->valid || device_state->timed_out ||
                                 device_state->temperature_c != packet->temperature_c ||
                                 device_state->humidity_pct != packet->humidity_pct ||
                                 device_state->voc_index != packet->voc_index ||
@@ -64,11 +67,33 @@ bool lora_state_store_update(
     device_state->pm2_5_ug_m3 = packet->pm2_5_ug_m3;
     device_state->status = packet->status;
     device_state->valid = true;
+    device_state->timed_out = false;
+    device_state->last_received_us = esp_timer_get_time();
     if (values_changed) {
         g_lora_devices_dirty[device_id] = true;
     }
     xSemaphoreGive(g_lora_devices_mutex);
     return true;
+}
+
+void lora_state_store_expire(int64_t now_us)
+{
+    if (g_lora_devices_mutex == NULL && !lora_state_store_init()) {
+        ESP_LOGE("lora_state_store", "Unable to initialize device state mutex");
+        return;
+    }
+
+    xSemaphoreTake(g_lora_devices_mutex, portMAX_DELAY);
+    for (uint32_t device_id = LORA_DEVICE_ID_MIN; device_id <= LORA_DEVICE_ID_MAX; ++device_id) {
+        lora_device_state_t *device_state = &g_lora_devices[device_id];
+        if (device_state->valid && !device_state->timed_out &&
+            now_us >= device_state->last_received_us &&
+            now_us - device_state->last_received_us >= (int64_t)USER_LORA_TIMEOUT_SECONDS * 1000000LL) {
+            device_state->timed_out = true;
+            g_lora_devices_dirty[device_id] = true;
+        }
+    }
+    xSemaphoreGive(g_lora_devices_mutex);
 }
 
 size_t lora_state_store_get_dirty_device_ids(uint32_t *device_ids, size_t max_count)

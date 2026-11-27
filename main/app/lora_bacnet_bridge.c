@@ -2,20 +2,24 @@
 
 #include "analog_input.h"
 #include "app_storage.h"
+#include "display.h"
 #include "lora_gateway.h"
 #include "lora_state_store.h"
 #include "User_Settings.h"
 
 #include "bacnet/basic/object/ai.h"
 
+#include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include <math.h>
 
 #define LORA_BACNET_DEVICE_SLOT_COUNT 4U
 #define LORA_BACNET_PERSIST_INTERVAL_MS 60000U
-#define LORA_BACNET_AI8_SLOT 7U
+#define LORA_BACNET_TIMEOUT_CHECK_MS 1000U
 
 static TaskHandle_t g_lora_bacnet_scheduler_task_handle = NULL;
 static SemaphoreHandle_t g_lora_bacnet_publish_sem = NULL;
@@ -28,11 +32,9 @@ static const uint32_t g_lora_device_field_map[LORA_DEVICE_ID_MAX + 1U][LORA_BACN
     {0U, 1U, 2U, 3U},
     {4U, 5U, 6U, 7U},
     {8U, 9U, 10U, 11U},
-    {12U, 13U, 14U, 15U}
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
+    {12U, 13U, 14U, 15U},
     {16U, 17U, 18U, 19U},
     {20U, 21U, 22U, 23U}
-    */
 };
 
 static bool lora_device_ai_slot_for_field(uint32_t device_id, lora_bacnet_field_t field, uint32_t *slot)
@@ -51,6 +53,11 @@ static bool lora_device_ai_slot_for_field(uint32_t device_id, lora_bacnet_field_
 
 static void lora_bacnet_publish_ai_value(uint32_t slot, float value)
 {
+    if (slot >= USER_AI_COUNT) {
+        ESP_LOGE("lora_bacnet_bridge", "AI slot %u is not configured", (unsigned)slot);
+        return;
+    }
+
     const uint32_t instance = USER_AI_INSTANCES[slot];
 
     Analog_Input_Present_Value_Set(instance, value);
@@ -83,11 +90,6 @@ static void lora_bacnet_publish_device_values(uint32_t device_id, const lora_dev
         return;
     }
 
-    if (device_id == 2U) {
-        lora_bacnet_publish_ai_value(LORA_BACNET_AI8_SLOT, device_state->voc_index);
-        return;
-    }
-
     uint32_t ai_temperature_slot = 0U;
     uint32_t ai_humidity_slot = 0U;
     uint32_t ai_voc_slot = 0U;
@@ -97,12 +99,26 @@ static void lora_bacnet_publish_device_values(uint32_t device_id, const lora_dev
         !lora_device_ai_slot_for_field(device_id, LORA_BACNET_FIELD_HUMIDITY, &ai_humidity_slot) ||
         !lora_device_ai_slot_for_field(device_id, LORA_BACNET_FIELD_VOC, &ai_voc_slot) ||
         !lora_device_ai_slot_for_field(device_id, LORA_BACNET_FIELD_PM25, &ai_pm25_slot)) {
+        ESP_LOGE("lora_bacnet_bridge", "AI mapping missing for device %u", (unsigned)device_id);
         return;
     }
 
-    // Future LORA_STATUS: store this in a dedicated Multi-State Value object, not in an AI.
-    const uint8_t lora_status_placeholder = LORA_STATUS_PLACEHOLDER_VALUE;
-    (void)lora_status_placeholder;
+    const uint32_t slots[] = {ai_temperature_slot, ai_humidity_slot, ai_voc_slot, ai_pm25_slot};
+    for (size_t i = 0U; i < LORA_BACNET_DEVICE_SLOT_COUNT; ++i) {
+        const uint32_t instance = USER_AI_INSTANCES[slots[i]];
+        if (device_state->timed_out) {
+            Analog_Input_Present_Value_Set(instance, -1.0f);
+        }
+        if (!Analog_Input_Reliability_Set(
+                instance,
+                device_state->timed_out ? RELIABILITY_COMMUNICATION_FAILURE : RELIABILITY_NO_FAULT_DETECTED)) {
+            ESP_LOGE("lora_bacnet_bridge", "Failed to set reliability for AI %u", (unsigned)instance);
+        }
+    }
+
+    if (device_state->timed_out) {
+        return;
+    }
 
     lora_bacnet_publish_ai_value(ai_temperature_slot, device_state->temperature_c);
     lora_bacnet_publish_ai_value(ai_humidity_slot, device_state->humidity_pct);
@@ -148,7 +164,8 @@ static void lora_bacnet_scheduler_task(void *argument)
     (void)argument;
 
     for (;;) {
-        xSemaphoreTake(g_lora_bacnet_publish_sem, portMAX_DELAY);
+        xSemaphoreTake(g_lora_bacnet_publish_sem, pdMS_TO_TICKS(LORA_BACNET_TIMEOUT_CHECK_MS));
+        lora_state_store_expire(esp_timer_get_time());
 
         uint32_t dirty_device_ids[LORA_DEVICE_ID_MAX + 1U] = {0U};
         const size_t dirty_device_count =
@@ -157,6 +174,7 @@ static void lora_bacnet_scheduler_task(void *argument)
         for (size_t index = 0U; index < dirty_device_count; ++index) {
             lora_bacnet_publish_device(dirty_device_ids[index]);
         }
+        display_refresh_lora_timeout();
     }
 }
 
@@ -186,5 +204,6 @@ esp_err_t lora_bacnet_scheduler_start(void)
         return ESP_ERR_NO_MEM;
     }
 
+    lora_bacnet_trigger_publish();
     return ESP_OK;
 }

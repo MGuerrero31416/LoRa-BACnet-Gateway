@@ -1,11 +1,13 @@
 #include "display.h"
 
+#include "lora_gateway.h"
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "u8g2.h"
 
@@ -26,8 +28,10 @@ static i2c_master_bus_handle_t display_bus;
 static i2c_master_dev_handle_t display_device;
 static u8g2_t display;
 static bool display_ready;
+static SemaphoreHandle_t display_mutex;
 static uint32_t received_count;
 static uint32_t received_device_id;
+static bool displayed_values_timed_out;
 
 /* Translate u8g2 I2C transfers into ESP-IDF master-bus transactions. */
 static uint8_t u8g2_i2c_callback(
@@ -134,27 +138,36 @@ static void display_draw_values(float voc, float pm25, float temperature, float 
     (void)snprintf(line, sizeof(line), "Device ID: %" PRIu32, received_device_id);
     u8g2_DrawStr(&display, 0, 31, line);
 
-    if (received_device_id == 2U) {
-        (void)snprintf(line, sizeof(line), "DO: %.1f mg/L", (double)voc);
-        u8g2_DrawStr(&display, 0, 50, line);
-        display_send_buffer();
-        return;
+    if (received_device_id >= 5U) {
+        u8g2_SetFont(&display, u8g2_font_5x8_tr);
+        u8g2_DrawStr(&display, 0, 47, "A1:");
+        (void)snprintf(value, sizeof(value), "%.2g", (double)temperature);
+        u8g2_DrawStr(&display, 15, 47, value);
+        u8g2_DrawStr(&display, 64, 47, "A2:");
+        (void)snprintf(value, sizeof(value), "%.2g", (double)humidity);
+        u8g2_DrawStr(&display, 79, 47, value);
+        u8g2_DrawStr(&display, 0, 63, "A3:");
+        (void)snprintf(value, sizeof(value), "%.2g", (double)voc);
+        u8g2_DrawStr(&display, 15, 63, value);
+        u8g2_DrawStr(&display, 64, 63, "A4:");
+        (void)snprintf(value, sizeof(value), "%.2g", (double)pm25);
+        u8g2_DrawStr(&display, 79, 63, value);
+    } else {
+        u8g2_DrawStr(&display, 0, 47, "VOC:");
+        (void)snprintf(value, sizeof(value), "%.0f", (double)voc);
+        u8g2_DrawStr(&display, 30, 47, value);
+        u8g2_DrawStr(&display, 74, 47, "T:");
+        (void)snprintf(
+            value, sizeof(value), displayed_values_timed_out ? "%.0f" : "%.1f", (double)temperature);
+        u8g2_DrawStr(&display, 90, 47, value);
+
+        u8g2_DrawStr(&display, 0, 63, "PM2.5:");
+        (void)snprintf(value, sizeof(value), "%.0f", (double)pm25);
+        u8g2_DrawStr(&display, 42, 63, value);
+        u8g2_DrawStr(&display, 74, 63, "HR:");
+        (void)snprintf(value, sizeof(value), "%.0f", (double)humidity);
+        u8g2_DrawStr(&display, 96, 63, value);
     }
-
-    // Lines 3-4: Fixed columns keep the T and HR fields aligned.
-    u8g2_DrawStr(&display, 0, 47, "VOC:");
-    (void)snprintf(value, sizeof(value), "%.0f", (double)voc);
-    u8g2_DrawStr(&display, 30, 47, value);
-    u8g2_DrawStr(&display, 74, 47, "T:");
-    (void)snprintf(value, sizeof(value), "%.1f", (double)temperature);
-    u8g2_DrawStr(&display, 90, 47, value);
-
-    u8g2_DrawStr(&display, 0, 63, "PM2.5:");
-    (void)snprintf(value, sizeof(value), "%.0f", (double)pm25);
-    u8g2_DrawStr(&display, 42, 63, value);
-    u8g2_DrawStr(&display, 74, 63, "HR:");
-    (void)snprintf(value, sizeof(value), "%.0f", (double)humidity);
-    u8g2_DrawStr(&display, 96, 63, value);
 
     display_send_buffer();
 }
@@ -173,6 +186,12 @@ void display_init(void)
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
     };
+
+    display_mutex = xSemaphoreCreateMutex();
+    if (display_mutex == NULL) {
+        ESP_LOGE(TAG, "OLED mutex allocation failed; continuing without display");
+        return;
+    }
 
     if (gpio_config(&output) != ESP_OK) {
         ESP_LOGE(TAG, "OLED GPIO setup failed; continuing without display");
@@ -196,7 +215,8 @@ void display_init(void)
     u8g2_SetPowerSave(&display, 0);
     u8g2_SetContrast(&display, 140);
     display_ready = true;
-    display_draw_values(0.0f, 0.0f, 0.0f, 0.0f);
+    u8g2_ClearBuffer(&display);
+    display_send_buffer();
 }
 
 void display_set_link_status(bool wifi_connected, bool mstp_connected)
@@ -217,7 +237,29 @@ void display_update_lora_values(
         return;
     }
 
+    xSemaphoreTake(display_mutex, portMAX_DELAY);
     received_count++;
     received_device_id = device_id;
+    displayed_values_timed_out = false;
     display_draw_values(voc, pm25, temperature, humidity);
+    xSemaphoreGive(display_mutex);
+}
+
+void display_refresh_lora_timeout(void)
+{
+    if (!display_ready) {
+        return;
+    }
+
+    xSemaphoreTake(display_mutex, portMAX_DELAY);
+    if (received_device_id != 0U && !displayed_values_timed_out) {
+        lora_device_state_t device_state = {0};
+        if (!lora_gateway_get_device_state(received_device_id, &device_state)) {
+            ESP_LOGE(TAG, "Unable to read displayed transmitter state");
+        } else if (device_state.valid && device_state.timed_out) {
+            displayed_values_timed_out = true;
+            display_draw_values(-1.0f, -1.0f, -1.0f, -1.0f);
+        }
+    }
+    xSemaphoreGive(display_mutex);
 }

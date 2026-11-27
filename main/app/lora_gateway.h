@@ -14,6 +14,8 @@ typedef struct {
     uint32_t device_id;
     uint32_t last_sequence;
     bool valid;
+    bool timed_out;
+    int64_t last_received_us;
     float temperature_c;
     float humidity_pct;
     float voc_index;

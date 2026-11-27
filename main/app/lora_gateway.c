@@ -13,10 +13,10 @@
  *   - CRC must pass before radio receive callback is accepted;
  *   - length must be exactly 26 bytes;
  *   - version must match the supported gateway protocol version;
- *   - device id must match the configured gateway sensor ID;
+ *   - device id must be enabled for the gateway;
  *   - sequence is decoded and retained with the sensor state, but does not
  *     restrict acceptance of periodic telemetry packets;
- *   - temperature, humidity, PM2.5, and VOC values must be in sane ranges.
+ *   - IDs 1-4 use SEN54 ranges; IDs 5-6 accept four finite generic values.
  */
 #include "lora_gateway.h"
 
@@ -131,6 +131,10 @@ static void lora_gateway_task(void *argument)
         memcpy(&packet_device_id, &data[1], sizeof(packet_device_id));
         if (!lora_device_id_valid(packet_device_id)) {
             lora_rx_reject_record_device_id(packet_device_id);
+            continue;
+        }
+        if (!lora_packet_device_enabled(packet_device_id)) {
+            ESP_LOGD(TAG, "ignoring disabled device_id=%" PRIu32, packet_device_id);
             continue;
         }
 

@@ -2,7 +2,10 @@
 
 LoRa-to-BACnet gateway firmware for the Heltec WiFi LoRa 32 V4 board using the SX1262 radio and a 128x64 SSD1315 OLED. The gateway receives validated LoRa sensor packets and publishes the resulting values into the BACnet object model while keeping BACnet/IP and BACnet MS/TP services active.
 
-The project is optimized for the gateway use case. BACnet identity, transport settings, LoRa protocol expectations, defaults, and persistence configuration remain centralized in `main/User_Settings.c`.
+The project is optimized for the gateway use case. BACnet identity, transport
+settings, object defaults, and persistence configuration are defined in
+`main/User_Settings.c`; object counts and the LoRa timeout are defined in
+`main/User_Settings.h`.
 
 ## 📡 Features
 
@@ -42,14 +45,21 @@ After changing the target or GPIO mapping, run a full clean build.
 ### Gateway OLED
 
 The gateway profile uses the Heltec board's 128x64 SSD1315 OLED over I2C. The
-display shows the most recently accepted LoRa packet:
+display is blank until the first accepted LoRa packet. For transmitter IDs 1–4,
+it then shows the most recently accepted packet:
 
 ```text
-TX ID: <device id>
-Packs rcvd: <count>
+RECEIVED: <count>
+Device ID: <device id>
 VOC: <value>       T: <temperature>
 PM2.5: <value>     HR: <humidity>
 ```
+
+For IDs 5–6, the measurement labels are `A1`–`A4` instead. When the displayed
+transmitter times out, all four values change to `-1`; its ID and the received
+packet count stay unchanged. A timeout for another transmitter does not replace
+the current screen. The next accepted packet updates the display and increments
+the count.
 
 The current wiring and bus settings are:
 
@@ -67,20 +77,33 @@ The display implementation is in
 
 ## 📊 BACnet Object Model
 
-The gateway build exposes 32 BACnet objects in the current firmware. The
-active profile maps received LoRa packet values into the BACnet object model
-while keeping the configured AV, BV, BI, and BO objects available for
-monitoring and expansion.
+The gateway accepts transmitter IDs 1–6 and exposes 24 BACnet Analog Input
+application objects, four per transmitter. AV, BV, BI, and BO defaults are
+retained for future use, but those objects are not currently created.
 
 | Objects     | Default purpose                                           |
 | ----------- | --------------------------------------------------------- |
-| `AI1–AI16`  | General-purpose Analog Inputs and telemetry channels       |
-| `AV1–AV16`  | Available general Analog Values                           |
-| `BV1–BV4`   | Available general Binary Values                           |
-| `BI1–BI4`   | Available general Binary Inputs                           |
-| `BO1–BO4`   | Available general Binary Outputs                          |
+| `AI1`–`AI16`  | IDs 1–4: temperature, relative humidity, VOC index, PM2.5 |
+| `AI17`–`AI20` | ID 5: generic inputs 1–4, no units                       |
+| `AI21`–`AI24` | ID 6: generic inputs 1–4, no units                       |
 
 These are logical default roles. BACnet instance numbers, names, descriptions, units, initial values, COV increments, and binary text are configurable through the parallel arrays in `main/User_Settings.c`.
+
+Before a transmitter's first valid packet, its four values are `-1` without a
+fault. After a transmitter has been seen, a gap of
+`USER_LORA_TIMEOUT_SECONDS` (currently 60 seconds in `main/User_Settings.h`)
+sets its values to `-1` and
+its BACnet reliability to communication failure. A new valid packet clears the
+fault, even if its readings have not changed. BACnet clients must be configured
+to alert on the fault; `-1` can also be a valid sensor reading. After receiver
+restart, each transmitter is treated as unseen until it sends a valid packet.
+
+IDs 5–6 use the same packet format: their generic inputs 1–4 correspond to the
+temperature, humidity, VOC, and PM2.5 packet fields, respectively, and must be
+finite. Existing NVS-saved BACnet names, descriptions, units and COV increments
+override compiled defaults; update saved metadata if it reflects an older
+mapping, especially ID 2's former dissolved-oxygen point. See
+[`OBJECTS_CONFIGURATION.md`](OBJECTS_CONFIGURATION.md).
 
 ## ⚙️ Configuration
 
@@ -213,8 +236,4 @@ main/
 ![Production installation](docs/images/20260722_124532.jpg)
 
 ![ESP32 BACnet hardware](docs/images/20260724_093956.jpg)
-
-
-
-
 

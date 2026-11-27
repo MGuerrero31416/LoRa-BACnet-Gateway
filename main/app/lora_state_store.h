@@ -12,5 +12,6 @@ bool lora_state_store_update(
 	uint32_t device_id,
 	const lora_gateway_packet_data_t *packet,
 	bool *publish_needed);
+void lora_state_store_expire(int64_t now_us);
 size_t lora_state_store_get_dirty_device_ids(uint32_t *device_ids, size_t max_count);
 void lora_state_store_clear_dirty(uint32_t device_id);

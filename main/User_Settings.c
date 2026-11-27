@@ -85,62 +85,48 @@ const uint8_t USER_BV_INITIAL_VALUES[USER_BV_COUNT] = {
 };
 
 const uint32_t USER_AI_INSTANCES[USER_AI_COUNT] = {
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
-    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-    */
+    1, 2, 3, 4,
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24
 };
 const char *USER_AI_NAMES[USER_AI_COUNT] = {
     "01_TEMP", "01_HR", "01_VOC", "01_PM2.5",
-    "02_TEMP", "02_HR", "02_VOC", "02_DO",
+    "02_TEMP", "02_HR", "02_VOC", "02_PM2.5",
     "03_TEMP", "03_HR", "03_VOC", "03_PM2.5",
-    "04_TEMP", "04_HR", "04_VOC", "04_PM2.5"
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
-    "05_TEMP", "05_HR", "05_VOC", "05_PM2.5",
-    "06_TEMP", "06_HR", "06_VOC", "06_PM2.5",
-    "AI25", "AI26", "AI27", "AI28",
-    "AI29", "AI30", "AI31", "AI32"
-    */
+    "04_TEMP", "04_HR", "04_VOC", "04_PM2.5",
+    "05_AI1", "05_AI2", "05_AI3", "05_AI4",
+    "06_AI1", "06_AI2", "06_AI3", "06_AI4"
 };
 const char *USER_AI_DESCRIPTIONS[USER_AI_COUNT] = {
     "Temperature Device 01", "Humidity Device 01", "VOC Index Device 01", "PM2.5 Device 01",
-    "Temperature Device 02", "Humidity Device 02", "VOC Index Device 02", "Dissolved Oxygen Device 02",
+    "Temperature Device 02", "Humidity Device 02", "VOC Index Device 02", "PM2.5 Device 02",
     "Temperature Device 03", "Humidity Device 03", "VOC Index Device 03", "PM2.5 Device 03",
-    "Temperature Device 04", "Humidity Device 04", "VOC Index Device 04", "PM2.5 Device 04"
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
-    "Temperature Device 05", "Humidity Device 05", "VOC Index Device 05", "PM2.5 Device 05",
-    "Temperature Device 06", "Humidity Device 06", "VOC Index Device 06", "PM2.5 Device 06",
-    "Analog Input 25", "Analog Input 26", "Analog Input 27", "Analog Input 28",
-    "Analog Input 29", "Analog Input 30", "Analog Input 31", "Analog Input 32"
-    */
+    "Temperature Device 04", "Humidity Device 04", "VOC Index Device 04", "PM2.5 Device 04",
+    "Device 05 Analog Input 1", "Device 05 Analog Input 2", "Device 05 Analog Input 3", "Device 05 Analog Input 4",
+    "Device 06 Analog Input 1", "Device 06 Analog Input 2", "Device 06 Analog Input 3", "Device 06 Analog Input 4"
 };
 const uint16_t USER_AI_UNITS[USER_AI_COUNT] = {
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
-    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MILLIGRAMS_PER_LITER,
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
-    UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
     UNITS_DEGREES_CELSIUS, UNITS_PERCENT_RELATIVE_HUMIDITY, UNITS_NO_UNITS, UNITS_MICROGRAMS_PER_CUBIC_METER,
     UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS,
     UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS, UNITS_NO_UNITS
-    */
 };
 const float USER_AI_INITIAL_VALUES[USER_AI_COUNT] = {
-    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
-    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
-    */
+    -1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f, -1.0f
 };
 const float USER_AI_COV_INCREMENTS[USER_AI_COUNT] = {
-    0.1f, 0.5f, 1.0f, 1.0f, 0.1f, 0.5f, 1.0f, 1.0f,
-    0.1f, 0.5f, 1.0f, 1.0f, 0.1f, 0.5f, 1.0f, 1.0f
-    /* Provisionally disabled: LoRa transmitter IDs 5-6.
-    0.1f, 0.5f, 1.0f, 1.0f, 0.1f, 0.5f, 1.0f, 1.0f,
+    0.1f, 0.5f, 1.0f, 1.0f,
+    0.1f, 0.5f, 1.0f, 1.0f,
+    0.1f, 0.5f, 1.0f, 1.0f,
+    0.1f, 0.5f, 1.0f, 1.0f,
     1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-    */
 };
 
 const uint32_t USER_BI_INSTANCES[USER_BI_COUNT] = { 1, 2, 3, 4 };

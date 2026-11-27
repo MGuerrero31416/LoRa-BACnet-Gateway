@@ -100,7 +100,6 @@ void app_main(void)
         lora_gateway_start(&lora_gateway_task_handle));
     ESP_ERROR_CHECK(
         lora_bacnet_scheduler_start());
-    lora_bacnet_update_all_if_valid();
 
     app_supervisor_run();
 }

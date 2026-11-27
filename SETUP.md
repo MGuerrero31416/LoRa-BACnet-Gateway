@@ -500,16 +500,17 @@ main/User_Private_Settings.h
 
 ## 12. BACnet object configuration
 
-The default object model contains:
+The active gateway creates only Analog Inputs. Other configured defaults are
+retained but are not created:
 
 | Object type   |  Count |
 | ------------- | -----: |
-| Analog Value  |     16 |
-| Binary Value  |      4 |
-| Analog Input  |     16 |
-| Binary Input  |      4 |
-| Binary Output |      4 |
-| **Total**     | **32** |
+| Analog Value  |      0 |
+| Binary Value  |      0 |
+| Analog Input  |     24 |
+| Binary Input  |      0 |
+| Binary Output |      0 |
+| **Total**     | **24** |
 
 The object counts and logical roles are defined in:
 
@@ -525,11 +526,8 @@ main/User_Settings.c
 
 Default logical roles include:
 
-* AI1–AI16: LoRa gateway telemetry and general-purpose analog monitoring channels
-* AV1–AV16: generic analog control and telemetry values
-* BV1–BV4: generic binary controls
-* BI1–BI4: generic binary status inputs
-* BO1–BO4: generic binary outputs
+* AI1–AI16: SEN54 telemetry for transmitter IDs 1–4
+* AI17–AI24: generic, unitless telemetry for transmitter IDs 5–6
 
 See [`OBJECTS_CONFIGURATION.md`](OBJECTS_CONFIGURATION.md) before changing object counts or parallel arrays.
 
@@ -765,6 +763,21 @@ C:\esp\v6.0.2\esp-idf
 ```
 
 Use the VS Code ESP-IDF extension or an initialized ESP-IDF 6.0.2 shell when the installation uses another path.
+
+### ESP-IDF reports a different active Python environment
+
+The SDK Configuration Editor and the build wrapper must use the same ESP-IDF
+Python environment for a given build directory. When using an Espressif
+Installation Manager setup, set `ESP_IDF_ACTIVATION_SCRIPT` to its PowerShell
+activation profile before running the wrapper, or set it in the VS Code task's
+`options.env`. Without this variable, the wrapper uses the installation's
+`export.ps1`.
+
+If the build directory was configured with a different Python, run the ESP-IDF
+full-clean task once and reopen the SDK Configuration Editor. Full clean removes
+generated build outputs, including firmware binaries, and may remove downloaded
+`managed_components`; it does not remove `sdkconfig`. ESP-IDF restores managed
+components when the project is configured again.
 
 ### `User_Private_Settings.h` is missing
 

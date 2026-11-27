@@ -6,11 +6,15 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ExpectedIdfPath = "C:\esp\v6.0.2\esp-idf"
-$ExportScript = Join-Path $ExpectedIdfPath "export.ps1"
+$ActivationScript = if ($env:ESP_IDF_ACTIVATION_SCRIPT) {
+    $env:ESP_IDF_ACTIVATION_SCRIPT
+} else {
+    Join-Path $ExpectedIdfPath "export.ps1"
+}
 $IdfPyScript = Join-Path $ExpectedIdfPath "tools\idf.py"
 
-if (-not (Test-Path $ExportScript)) {
-    throw "Required ESP-IDF installation not found: $ExpectedIdfPath"
+if (-not (Test-Path -LiteralPath $ActivationScript -PathType Leaf)) {
+    throw "ESP-IDF activation script not found: $ActivationScript"
 }
 
 if (-not (Test-Path $IdfPyScript)) {
@@ -19,10 +23,11 @@ if (-not (Test-Path $IdfPyScript)) {
 
 Write-Host "Activating required ESP-IDF: $ExpectedIdfPath"
 
-# Activate the exact ESP-IDF installation required by this project.
-& $ExportScript
+$global:LASTEXITCODE = 0
+& $ActivationScript
 
-if ($LASTEXITCODE -ne 0) {
+# Installation Manager profiles can leave a nonzero exit code from shell completion.
+if (-not $env:ESP_IDF_ACTIVATION_SCRIPT -and $LASTEXITCODE -ne 0) {
     throw "ESP-IDF 6.0.2 environment activation failed."
 }
 

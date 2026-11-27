@@ -8,7 +8,7 @@
 #define LORA_GATEWAY_PACKET_LEN 26U
 
 #define LORA_DEVICE_ID_MIN 1U
-#define LORA_DEVICE_ID_MAX 4U
+#define LORA_DEVICE_ID_MAX 6U
 
 #define LORA_GATEWAY_STATUS_OK 0U
 #define LORA_GATEWAY_STATUS_WARNING 1U
@@ -34,6 +34,8 @@ typedef struct {
     float voc_index;
     uint8_t status;
 } lora_gateway_packet_data_t;
+
+bool lora_packet_device_enabled(uint32_t device_id);
 
 bool lora_packet_decode(
     const uint8_t *packet,

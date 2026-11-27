@@ -23,15 +23,17 @@ bool lora_rx_dispatch_apply_packet(const lora_gateway_packet_data_t *packet)
         lora_bacnet_trigger_publish();
     }
 
-    ESP_LOGI(TAG,
-             "accepted LoRa packet device=%" PRIu32 " seq=%" PRIu32 " temp=%.2f RH=%.2f PM2.5=%.2f VOC=%.2f status=%u",
-             packet->device_id,
-             packet->sequence,
-             packet->temperature_c,
-             packet->humidity_pct,
-             packet->pm2_5_ug_m3,
-             packet->voc_index,
-             packet->status);
+    if (packet->device_id >= 5U) {
+        ESP_LOGI(TAG,
+                 "accepted LoRa packet device=%" PRIu32 " seq=%" PRIu32 " AI1=%.2f AI2=%.2f AI3=%.2f AI4=%.2f status=%u",
+                 packet->device_id, packet->sequence, packet->temperature_c, packet->humidity_pct,
+                 packet->voc_index, packet->pm2_5_ug_m3, packet->status);
+    } else {
+        ESP_LOGI(TAG,
+                 "accepted LoRa packet device=%" PRIu32 " seq=%" PRIu32 " temp=%.2f RH=%.2f PM2.5=%.2f VOC=%.2f status=%u",
+                 packet->device_id, packet->sequence, packet->temperature_c, packet->humidity_pct,
+                 packet->pm2_5_ug_m3, packet->voc_index, packet->status);
+    }
 
     return true;
 }

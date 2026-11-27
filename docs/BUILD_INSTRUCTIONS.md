@@ -51,13 +51,11 @@ have been checked.
 
 ## BACnet Object Model
 
-The default configuration exposes 32 objects:
+The active configuration creates 24 Analog Input application objects for
+transmitter IDs 1–6. The other configured object types are not currently created:
 
-- 16 Analog Values
-- 4 Binary Values
-- 16 Analog Inputs
-- 4 Binary Inputs
-- 4 Binary Outputs
+- AI1–AI16: temperature, relative humidity, VOC index and PM2.5 for IDs 1–4
+- AI17–AI24: four generic, unitless inputs each for IDs 5 and 6
 
 BACnet device identity, object instances, and metadata are configured in
 `main/User_Settings.c` and `main/User_Settings.h`. The active device instance

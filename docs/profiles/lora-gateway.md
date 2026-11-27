@@ -68,9 +68,13 @@ The OLED VEXT control is driven low to power the display. The UI uses a
 - Legacy sensor acquisition is disabled for this profile.
 - A LoRa gateway task receives and validates 26-byte protocol-version-1
   packets.
-- The expected LoRa device ID and protocol values come from
-  `main/User_Settings.c`.
-- The OLED displays the accepted packet count, VOC index, and PM2.5 value.
+- Transmitter IDs 1–6 are enabled in `main/app/lora_packet.c`.
+- The protocol version is defined in `main/app/lora_packet.h`.
+- BACnet exposes four Analog Inputs for each transmitter. IDs 1–4 use SEN54
+  fields; IDs 5–6 use four generic, unitless fields. Previously seen devices
+  time out after `USER_LORA_TIMEOUT_SECONDS`; never-seen devices do not fault.
+- The OLED is blank until a packet is accepted, then displays its values and
+  the accepted packet count.
 - No auxiliary air-quality sensor task is compiled for the gateway profile.
 
 Before building, verify that the board revision and attached front-end use the

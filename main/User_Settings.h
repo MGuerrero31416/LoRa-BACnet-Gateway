@@ -55,11 +55,15 @@ extern const uint32_t USER_MSTP_BAUD_RATE;
 /* BACnet object defaults */
 #define USER_AV_COUNT 16
 #define USER_BV_COUNT 4
-#define USER_AI_COUNT 16
+#define USER_AI_COUNT 24
 #define USER_BI_COUNT 4
 #define USER_BO_COUNT 4
 
 #define LORA_PACKET_MAX_LEN 32U
+#define USER_LORA_TIMEOUT_SECONDS 60U
+#if USER_LORA_TIMEOUT_SECONDS == 0
+#error "USER_LORA_TIMEOUT_SECONDS must be greater than zero"
+#endif
 
 extern const uint32_t USER_AV_INSTANCES[USER_AV_COUNT];
 extern const char *USER_AV_NAMES[USER_AV_COUNT];
